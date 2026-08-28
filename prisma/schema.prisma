@@ -1,0 +1,302 @@
+// ============================================================
+// UC Centers — Prisma Schema (PostgreSQL)
+// ============================================================
+// Catatan desain:
+// - Semua password disimpan sebagai hash (passwordHash), bukan plaintext.
+//   Hashing (argon2id / bcrypt cost>=12) dilakukan di application layer,
+//   BUKAN di database — schema hanya menyediakan kolomnya.
+// - onDelete: Cascade dipakai untuk data anak yang tidak berguna tanpa
+//   induknya (mis. TeamMember tanpa Center). Untuk Lead sengaja TIDAK
+//   cascade agar riwayat lead tetap ada walau Center dihapus (SetNull).
+// - Slug dipakai untuk URL publik (bukan id/cuid) supaya URL rapi & SEO-friendly.
+// - ActivityLog TIDAK otomatis terisi oleh database — harus ditulis eksplisit
+//   di setiap mutation di application layer (server action / API route).
+//   Schema hanya menyediakan tempatnya.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// AUTH & ADMIN
+// ------------------------------------------------------------
+
+enum AdminRole {
+  SUPER_ADMIN   // akses semua center
+  CENTER_ADMIN  // akses dibatasi ke centerId miliknya — batasan ini WAJIB
+                // ditegakkan di application layer (middleware/query filter),
+                // schema tidak bisa memaksanya sendiri.
+}
+
+model AdminUser {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  role         AdminRole   @default(CENTER_ADMIN)
+  centerId     String?     // null untuk SUPER_ADMIN
+  center       Center?     @relation(fields: [centerId], references: [id], onDelete: SetNull)
+  isActive     Boolean     @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  articles       Article[]
+  activityLogs   ActivityLog[]
+  handledLeads   Lead[]        @relation("LeadHandledBy")
+
+  @@index([centerId])
+}
+
+// ------------------------------------------------------------
+// TAXONOMY (dipakai bersama oleh Center, Portfolio, Artikel)
+// ------------------------------------------------------------
+
+model ExpertiseTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  colorHex  String?  // untuk badge warna konsisten lintas halaman
+  createdAt DateTime @default(now())
+
+  centers  CenterExpertise[]
+  projects ProjectExpertise[]
+}
+
+// ------------------------------------------------------------
+// CENTER
+// ------------------------------------------------------------
+
+enum HeroMediaType {
+  IMAGE
+  VIDEO
+}
+
+model Center {
+  id             String        @id @default(cuid())
+  name           String
+  slug           String        @unique
+  tagline        String?
+  logoUrl        String?
+  heroMediaType  HeroMediaType @default(IMAGE)
+  heroMediaUrl   String?       // image URL ATAU embed URL video (YouTube/Vimeo)
+  aboutContent   String?       @db.Text
+  profilePdfUrl  String?       // tombol "Unduh Profil"
+  isPublished    Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  expertiseTags CenterExpertise[]
+  services      CenterService[]
+  team          TeamMember[]
+  clientLogos   ClientLogo[]
+  projects      PortfolioProject[]
+  admins        AdminUser[]
+  leads         Lead[]
+
+  @@index([isPublished])
+}
+
+model CenterExpertise {
+  centerId String
+  tagId    String
+  center   Center       @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  tag      ExpertiseTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([centerId, tagId])
+}
+
+model CenterService {
+  id        String   @id @default(cuid())
+  centerId  String
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  title     String
+  description String?
+  sortOrder Int      @default(0)
+
+  @@index([centerId])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  centerId  String
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  name      String
+  role      String
+  photoUrl  String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([centerId])
+}
+
+model ClientLogo {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String
+  centerId  String?  // null = tampil global (Beranda), diisi = khusus 1 center
+  center    Center?  @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([centerId])
+}
+
+// ------------------------------------------------------------
+// PORTFOLIO
+// ------------------------------------------------------------
+
+model PortfolioProject {
+  id               String   @id @default(cuid())
+  centerId         String
+  center           Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  title            String
+  slug             String   @unique
+  summary          String?
+  caseStudyContent String?  @db.Text
+  coverImageUrl    String?
+  videoEmbedUrl    String?  // opsional, embed YouTube/Vimeo
+  isHighlighted    Boolean  @default(false) // tampil di Beranda
+  isPublished      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  expertiseTags ProjectExpertise[]
+
+  @@index([centerId])
+  @@index([isHighlighted])
+  @@index([isPublished])
+}
+
+model ProjectExpertise {
+  projectId String
+  tagId     String
+  project   PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       ExpertiseTag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, tagId])
+}
+
+// ------------------------------------------------------------
+// ARTIKEL (halaman publik ke-5 — lihat catatan di atas)
+// ------------------------------------------------------------
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model ArticleCategory {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  articles Article[]
+}
+
+model Article {
+  id              String           @id @default(cuid())
+  title           String
+  slug            String           @unique
+  summary         String?
+  content         String           @db.Text
+  coverImageUrl   String?
+  categoryId      String?
+  category        ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  status          ArticleStatus    @default(DRAFT)
+  publishedAt     DateTime?
+  seoTitle        String?
+  seoDescription  String?
+  authorId        String?
+  author          AdminUser?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  attachments ArticleAttachment[]
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+}
+
+model ArticleAttachment {
+  id            String   @id @default(cuid())
+  articleId     String
+  article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  fileUrl       String   // URL di object storage — WAJIB bucket public-read khusus folder ini
+  fileName      String
+  fileSizeBytes Int?
+  mimeType      String?  // validasi whitelist mime type dilakukan di application layer sebelum upload
+  createdAt     DateTime @default(now())
+
+  @@index([articleId])
+}
+
+// ------------------------------------------------------------
+// LEADS (form Konsultasi / Ajukan Kerja Sama / Hubungi Center)
+// ------------------------------------------------------------
+
+enum LeadSource {
+  HOMEPAGE
+  CENTER_DETAIL
+  GENERAL_CONSULTATION
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CLOSED
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  centerId       String?
+  center         Center?    @relation(fields: [centerId], references: [id], onDelete: SetNull)
+  name           String
+  email          String
+  phone          String?
+  message        String?    @db.Text
+  source         LeadSource
+  status         LeadStatus @default(NEW)
+  handledById    String?
+  handledBy      AdminUser? @relation("LeadHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([centerId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------
+// ACTIVITY LOG
+// ------------------------------------------------------------
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      AdminUser @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  action     String   // "CREATE" | "UPDATE" | "DELETE" | "PUBLISH" | dst — pakai konstanta di app layer
+  entityType String   // "Center" | "Article" | "PortfolioProject" | dst
+  entityId   String
+  metadata   Json?    // simpan before/after value kalau perlu audit detail
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ------------------------------------------------------------
+// SITE SETTINGS (hero copy, trust strip, dsb — konten Beranda)
+// ------------------------------------------------------------
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique // mis. "hero_headline", "trust_stat_centers"
+  value     Json
+  updatedAt DateTime @updatedAt
+}
