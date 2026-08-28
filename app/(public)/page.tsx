@@ -11,7 +11,6 @@ import { ArrowRight, Building, Award, Users, ShieldCheck, ChevronRight } from "l
 
 export const dynamic = "force-dynamic";
 
-// High-quality fallback data to guarantee instant rendering & zero lag even if database is empty
 const defaultFallbackCenters = [
   {
     id: "c1",
@@ -88,6 +87,31 @@ export default async function HomePage() {
   let highlightedProjects: any[] = [];
   let partnerLogos: any[] = [];
 
+  let siteSettings: Record<string, string> = {
+    hero_headline: "Menghubungkan Riset Akademik & Inovasi Industri Terdepan",
+    hero_subheadline: "UC Centers menghadirkan solusi kolaboratif melalui riset terapan berstandar internasional, konsultasi bisnis strategis, dan program pelatihan SDM profesional.",
+    hero_image_url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1000&q=80",
+    stat1_number: "12",
+    stat1_label: "CENTER OF EXCELLENCE",
+    stat2_number: "500+",
+    stat2_label: "PROYEK SELESAI",
+    stat3_number: "300+",
+    stat3_label: "MITRA KORPORASI",
+    stat4_number: "20",
+    stat4_label: "TAHUN PENGALAMAN",
+  };
+
+  try {
+    const dbSettings = await prisma.siteSetting.findMany();
+    for (const s of dbSettings) {
+      if (typeof s.value === "string") {
+        siteSettings[s.key] = s.value;
+      }
+    }
+  } catch (e) {
+    console.warn("DB offline during settings query");
+  }
+
   try {
     centers = (await getCachedData<any[]>("public:centers:homepage")) || [];
     if (centers.length === 0) {
@@ -143,17 +167,17 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-20 pb-20">
-      {/* Hero Section */}
+      {/* Dynamic Hero Section */}
       <section className="relative pt-12 lg:pt-20 overflow-hidden bg-gradient-to-b from-white to-[#f9f9ff]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Left Column: Headlines & Action */}
+            {/* Left Column: Dynamic Headlines & Action */}
             <div className="lg:col-span-7 space-y-6 text-left">
               <h1 className="text-display text-[#003366]">
-                Menghubungkan <span className="bg-gradient-to-r from-[#233e95] to-[#0b64b4] bg-clip-text text-transparent">Riset Akademik</span> & Inovasi Industri Terdepan
+                {siteSettings.hero_headline}
               </h1>
               <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-2xl">
-                UC Centers menghadirkan solusi kolaboratif melalui riset terapan berstandar internasional, konsultasi bisnis strategis, dan program pelatihan SDM profesional.
+                {siteSettings.hero_subheadline}
               </p>
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link href="/center">
@@ -170,12 +194,12 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right Column: Hero Image */}
+            {/* Right Column: Dynamic Hero Image */}
             <div className="lg:col-span-5 relative">
               <div className="relative mx-auto w-full max-w-md lg:max-w-none aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border-4 border-white">
                 <Image
-                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1000&q=80"
-                  alt="UC Centers Executive Team"
+                  src={siteSettings.hero_image_url}
+                  alt="UC Centers Hero"
                   fill
                   priority
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
@@ -187,28 +211,28 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Trust Strip */}
+      {/* Dynamic Trust Strip Counter Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-[#003366] rounded-2xl p-8 text-white shadow-xl grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-blue-800">
           <div className="flex flex-col items-center text-center p-2">
             <Building className="w-8 h-8 text-blue-400 mb-2" />
-            <span className="text-3xl sm:text-4xl font-extrabold text-white">12</span>
-            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">Center of Excellence</span>
+            <span className="text-3xl sm:text-4xl font-extrabold text-white">{siteSettings.stat1_number}</span>
+            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">{siteSettings.stat1_label}</span>
           </div>
           <div className="flex flex-col items-center text-center p-2 pt-6 md:pt-2">
             <Award className="w-8 h-8 text-blue-400 mb-2" />
-            <span className="text-3xl sm:text-4xl font-extrabold text-white">500+</span>
-            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">Proyek Selesai</span>
+            <span className="text-3xl sm:text-4xl font-extrabold text-white">{siteSettings.stat2_number}</span>
+            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">{siteSettings.stat2_label}</span>
           </div>
           <div className="flex flex-col items-center text-center p-2 pt-6 md:pt-2">
             <Users className="w-8 h-8 text-blue-400 mb-2" />
-            <span className="text-3xl sm:text-4xl font-extrabold text-white">300+</span>
-            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">Mitra Korporasi</span>
+            <span className="text-3xl sm:text-4xl font-extrabold text-white">{siteSettings.stat3_number}</span>
+            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">{siteSettings.stat3_label}</span>
           </div>
           <div className="flex flex-col items-center text-center p-2 pt-6 md:pt-2">
             <ShieldCheck className="w-8 h-8 text-blue-400 mb-2" />
-            <span className="text-3xl sm:text-4xl font-extrabold text-white">20</span>
-            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">Tahun Pengalaman</span>
+            <span className="text-3xl sm:text-4xl font-extrabold text-white">{siteSettings.stat4_number}</span>
+            <span className="text-xs sm:text-sm text-slate-300 font-medium mt-1 uppercase tracking-wider">{siteSettings.stat4_label}</span>
           </div>
         </div>
       </section>
