@@ -23,7 +23,6 @@
     "@tiptap/starter-kit": "^2.6.6",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
-    "ioredis": "^5.4.1",
     "lucide-react": "^0.436.0",
     "next": "^14.2.7",
     "next-auth": "^4.24.7",

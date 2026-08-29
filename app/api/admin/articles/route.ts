@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateCachePattern } from "@/lib/cache";
 import { logActivity } from "@/lib/activity-log";
+import { uniqueSlug } from "@/lib/slug";
+import { handleApiError, readJson, requireAdmin, requireField } from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
+
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    await requireAdmin(PERMISSIONS.ARTICLES_VIEW);
 
     const articles = await prisma.article.findMany({
       include: {
@@ -21,66 +26,69 @@ export async function GET() {
     });
 
     return NextResponse.json(articles);
-  } catch (error: any) {
-    console.error("[Admin Articles GET Error]:", error);
-    return NextResponse.json({ error: "Failed to fetch articles." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Articles GET", error);
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAdmin(PERMISSIONS.ARTICLES_MANAGE);
+    const body = await readJson<Record<string, any>>(req);
 
-    const actorId = (session.user as any).id;
-    const body = await req.json();
-    const { title, summary, content, coverImageUrl, categoryId, status, seoTitle, seoDescription, attachments } = body;
+    const title = (requireField(body.title, "Judul artikel") as string).trim();
+    const content = requireField(body.content, "Konten artikel") as string;
 
-    if (!title || !content) {
-      return NextResponse.json({ error: "Judul dan konten artikel wajib diisi." }, { status: 400 });
-    }
+    const slug = await uniqueSlug(
+      title,
+      async (candidate) => (await prisma.article.count({ where: { slug: candidate } })) > 0,
+      "artikel"
+    );
 
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const isPublished = body.status === "PUBLISHED";
+    const attachments: any[] = Array.isArray(body.attachments) ? body.attachments : [];
 
     const article = await prisma.article.create({
       data: {
         title,
-        slug: `${slug}-${Date.now().toString().slice(-4)}`,
-        summary,
+        slug,
         content,
-        coverImageUrl,
-        categoryId: categoryId || null,
-        status: status || "DRAFT",
-        publishedAt: status === "PUBLISHED" ? new Date() : null,
-        seoTitle,
-        seoDescription,
-        authorId: actorId,
-        attachments: attachments?.length
+        summary: body.summary ?? null,
+        coverImageUrl: body.coverImageUrl ?? null,
+        categoryId: body.categoryId || null,
+        status: isPublished ? "PUBLISHED" : "DRAFT",
+        publishedAt: isPublished ? new Date() : null,
+        seoTitle: body.seoTitle ?? null,
+        seoDescription: body.seoDescription ?? null,
+        // authorId menunjuk AdminUser sungguhan. Sebelumnya login memakai id
+        // fiktif "super-admin-default-id" sehingga create artikel selalu gagal
+        // foreign key dan dibalas 500.
+        authorId: user.id,
+        attachments: attachments.length
           ? {
-              create: attachments.map((att: any) => ({
+              create: attachments.map((att) => ({
                 fileName: att.fileName,
                 fileUrl: att.fileUrl,
-                fileSizeBytes: att.fileSizeBytes,
-                mimeType: att.mimeType,
+                fileSizeBytes: att.fileSizeBytes ?? null,
+                mimeType: att.mimeType ?? null,
               })),
             }
           : undefined,
       },
     });
 
+    await invalidateCachePattern("public:articles*");
+
     await logActivity({
-      actorId,
-      action: status === "PUBLISHED" ? "PUBLISH" : "CREATE",
+      actorId: user.id,
+      action: isPublished ? "PUBLISH" : "CREATE",
       entityType: "Article",
       entityId: article.id,
       metadata: { title: article.title, status: article.status },
     });
 
     return NextResponse.json(article, { status: 201 });
-  } catch (error: any) {
-    console.error("[Admin Articles POST Error]:", error);
-    return NextResponse.json({ error: "Failed to create article." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Articles POST", error);
   }
 }

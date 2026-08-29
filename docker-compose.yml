@@ -1,59 +1,109 @@
-version: '3.8'
+# ============================================================================
+#  UC Centers — Orchestrator 3 container
+#    db    : PostgreSQL 16          (internal)
+#    app   : Next.js 14 standalone  (internal, auto migrate + seed saat start)
+#    nginx : reverse proxy          (satu-satunya pintu ke host)
+#
+#  Jalankan : docker compose up -d --build
+#  Stop     : docker compose down          (volume data DB tetap aman)
+#  Konfig   : salin .env.example -> .env
+#
+#  AUTO STARTUP: semua service memakai `restart: unless-stopped`, jadi setiap
+#  Docker Desktop / komputer dinyalakan kontainer ikut menyala sendiri tanpa
+#  perlu build atau perintah manual lagi.
+# ============================================================================
+
+name: uc-centers
 
 services:
+  # ── Database ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: uc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB:       ${DB_NAME:-uccenters}
+      TZ: Asia/Jakarta
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-uccenters}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 384m
+    networks: [uc-net]
+
+  # ── Aplikasi Next.js ──────────────────────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    restart: always
-    command: sh -c "npx prisma migrate deploy && node server.js"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/uccenters?schema=public
-      - REDIS_URL=redis://redis:6379
-      - NEXTAUTH_SECRET=uc_centers_super_secret_jwt_key_32_chars_min
-      - NEXTAUTH_URL=http://localhost
+    image: uc-centers-app:latest
+    container_name: uc-app
+    restart: unless-stopped
     depends_on:
       db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-  db:
-    image: postgres:16-alpine
-    restart: always
+        condition: service_healthy    # tunggu Postgres siap sebelum migrate
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: uccenters
-    ports:
-      - "5432:5432"
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      TZ: Asia/Jakarta
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-uccenters}?schema=public
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET wajib diisi di file .env}
+      NEXTAUTH_URL:    ${NEXTAUTH_URL:-http://localhost:8090}
+      SEED_ADMIN_EMAIL:    ${SEED_ADMIN_EMAIL:-admin@uccenters.id}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Password123!}
+      SKIP_SEED: ${SKIP_SEED:-false}
+      UPLOAD_DIR: /app/uploads
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Berkas unggahan disimpan di volume, bukan di dalam image, supaya tidak
+      # ikut terhapus setiap kali image dibangun ulang.
+      - uploads_data:/app/uploads
+    expose:
+      - 3000
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d uccenters"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s     # beri waktu migrate + seed selesai
+    mem_limit: 640m
+    networks: [uc-net]
 
-  redis:
-    image: redis:7-alpine
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
+  # ── Nginx reverse proxy ───────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
-    restart: always
+    container_name: uc-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
     ports:
-      - "80:80"
-      - "443:443"
+      # Port host 8090 dipilih supaya tidak bentrok dengan gudang-elektronik
+      # (8080) maupun rsudrme (8081/8082/8083).
+      - "${WEB_PORT:-8090}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - app
+      # Read-only: Nginx hanya menyajikan berkas, tidak pernah menulisnya.
+      - uploads_data:/var/www/uploads:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 96m
+    networks: [uc-net]
 
 volumes:
   postgres_data:
-  redis_data:
+  uploads_data:
+
+networks:
+  uc-net:
+    driver: bridge

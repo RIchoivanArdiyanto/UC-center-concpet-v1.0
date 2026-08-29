@@ -6,6 +6,35 @@
   body {
     @apply bg-[#f9f9ff] text-[#111c2d] font-sans antialiased;
   }
+
+  /* Cincin fokus konsisten untuk navigasi keyboard di seluruh panel. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-[#0b64b4] ring-offset-2 ring-offset-white;
+  }
+}
+
+@layer components {
+  /* Gaya seragam untuk seluruh input form admin — sebelumnya kelas panjang yang
+     sama disalin puluhan kali dan mulai menyimpang satu sama lain. */
+  .field {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-[#111c2d]
+           transition placeholder:text-slate-400
+           focus:border-[#0b64b4] focus:outline-none focus:ring-2 focus:ring-[#0b64b4]/30
+           disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-xs font-semibold text-slate-700;
+  }
+
+  /* Header kolom tabel admin. */
+  .th {
+    @apply px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500;
+  }
+
+  .td {
+    @apply px-5 py-4 align-middle text-sm text-slate-700;
+  }
 }
 
 .text-display {
@@ -14,16 +43,59 @@
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
+/* Dialog: sedikit membesar saat muncul supaya terasa "naik" ke depan. */
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.animate-pop-in {
+  animation: popIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Toast: masuk dari bawah kanan. */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Placeholder saat data admin sedang dimuat. */
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.skeleton {
+  @apply relative overflow-hidden rounded-md bg-slate-200/70;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 1.6s infinite;
+}
+
 /* Infinite Marquee Ticker Animation (Moving Left) */
 @keyframes marquee {
-  0% { transform: translateX(0%); }
+  0%   { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
 }
 
@@ -35,4 +107,15 @@
 
 .animate-marquee:hover {
   animation-play-state: paused;
+}
+
+/* Hormati preferensi sistem "kurangi animasi". */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-pop-in,
+  .animate-slide-up,
+  .animate-marquee,
+  .skeleton::after {
+    animation: none;
+  }
 }

@@ -1,61 +1,81 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { setCachedData } from "@/lib/redis";
+import { invalidateCachePattern } from "@/lib/cache";
+import { logActivity } from "@/lib/activity-log";
+import { ApiError, handleApiError, readJson, requireAdmin } from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
+import {
+  DEFAULT_SITE_SETTINGS,
+  SETTING_KEYS,
+  type SiteSettings,
+} from "@/lib/site-settings";
 
-const DEFAULT_SETTINGS = {
-  hero_headline: "Menghubungkan Riset Akademik & Inovasi Industri Terdepan",
-  hero_subheadline: "UC Centers menghadirkan solusi kolaboratif melalui riset terapan berstandar internasional, konsultasi bisnis strategis, dan program pelatihan SDM profesional.",
-  hero_image_url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1000&q=80",
-  stat1_number: "12",
-  stat1_label: "CENTER OF EXCELLENCE",
-  stat2_number: "500+",
-  stat2_label: "PROYEK SELESAI",
-  stat3_number: "300+",
-  stat3_label: "MITRA KORPORASI",
-  stat4_number: "20",
-  stat4_label: "TAHUN PENGALAMAN",
-};
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
 
 export async function GET() {
   try {
     const settings = await prisma.siteSetting.findMany();
-    const result: Record<string, any> = { ...DEFAULT_SETTINGS };
+    const result: SiteSettings = { ...DEFAULT_SITE_SETTINGS };
 
     for (const item of settings) {
-      result[item.key] = item.value;
+      if (typeof item.value === "string") {
+        result[item.key] = item.value;
+      }
     }
 
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(DEFAULT_SETTINGS);
+    // Beranda tetap bisa tampil dengan nilai default walau DB sedang mati.
+    console.warn("[Admin Homepage GET] DB tidak terbaca, memakai nilai default:", error);
+    return NextResponse.json(DEFAULT_SITE_SETTINGS);
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await requireAdmin(PERMISSIONS.HOMEPAGE_MANAGE);
+    const body = await readJson<Record<string, unknown>>(req);
+
+    // Hanya kunci yang memang dikenal aplikasi yang boleh ditulis. Tanpa
+    // whitelist ini, siapa pun yang punya izin kelola beranda bisa menyisipkan
+    // baris SiteSetting sembarangan ke database.
+    const entries = Object.entries(body).filter(
+      ([key, value]) => typeof value === "string" && SETTING_KEYS.includes(key)
+    );
+    if (entries.length === 0) {
+      throw new ApiError(400, "Tidak ada konfigurasi yang dikenali dari data yang dikirim.");
     }
 
-    const body = await req.json();
+    // Versi lama membungkus tiap upsert dengan `.catch(() => {})` lalu tetap
+    // membalas { success: true } — penyimpanan yang gagal terlihat berhasil di
+    // panel admin. Sekarang seluruh key ditulis dalam satu transaksi: kalau ada
+    // yang gagal, tidak ada yang tersimpan sebagian dan error dibalas apa adanya.
+    await prisma.$transaction(
+      entries.map(([key, value]) =>
+        prisma.siteSetting.upsert({
+          where: { key },
+          update: { value: value as string },
+          create: { key, value: value as string },
+        })
+      )
+    );
 
-    // Upsert each setting key into SiteSetting table
-    for (const [key, value] of Object.entries(body)) {
-      await prisma.siteSetting.upsert({
-        where: { key },
-        update: { value: value as any },
-        create: { key, value: value as any },
-      }).catch(() => {});
-    }
+    await invalidateCachePattern("public:*");
 
-    // Invalidate public homepage cache so changes reflect instantly
-    await setCachedData("public:settings:homepage", body, 3600);
+    await logActivity({
+      actorId: user.id,
+      action: "UPDATE",
+      entityType: "SiteSetting",
+      entityId: "homepage",
+      metadata: { keys: entries.map(([k]) => k) },
+    });
 
-    return NextResponse.json({ success: true, settings: body });
-  } catch (error: any) {
-    return NextResponse.json({ error: "Gagal menyimpan konfigurasi beranda." }, { status: 500 });
+    return NextResponse.json({ success: true, settings: Object.fromEntries(entries) });
+  } catch (error) {
+    return handleApiError("Admin Homepage POST", error);
   }
 }

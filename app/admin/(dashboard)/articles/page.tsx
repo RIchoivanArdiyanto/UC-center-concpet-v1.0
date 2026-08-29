@@ -1,43 +1,50 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MobileTableCard } from "@/components/ui/mobile-table-card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { errorMessage, fetchJson } from "@/lib/fetch-json";
 import { Plus, Edit, Trash2, FileText, CheckCircle2, Clock } from "lucide-react";
 
 export default function AdminArticlesPage() {
+  const toast = useToast();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/articles");
-      if (res.ok) {
-        const data = await res.json();
-        setArticles(data);
-      }
+      setArticles(await fetchJson<any[]>("/api/admin/articles"));
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal memuat artikel", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchArticles();
-  }, []);
+  }, [fetchArticles]);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus artikel ini?")) return;
+  const confirmDelete = async () => {
+    if (!pending) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/articles/${id}`, { method: "DELETE" });
-      if (res.ok) fetchArticles();
+      await fetchJson(`/api/admin/articles/${pending.id}`, { method: "DELETE" });
+      toast.success("Artikel dihapus", pending.title);
+      setPending(null);
+      fetchArticles();
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal menghapus", errorMessage(err));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -121,7 +128,7 @@ export default function AdminArticlesPage() {
                             </button>
                           </Link>
                           <button
-                            onClick={() => handleDelete(a.id)}
+                            onClick={() => setPending({ id: a.id, title: a.title })}
                             className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -153,7 +160,7 @@ export default function AdminArticlesPage() {
                           <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                         </Button>
                       </Link>
-                      <Button variant="danger" size="sm" onClick={() => handleDelete(a.id)}>
+                      <Button variant="danger" size="sm" onClick={() => setPending({ id: a.id, title: a.title })}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </>
@@ -164,6 +171,20 @@ export default function AdminArticlesPage() {
           </>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={pending !== null}
+        loading={deleting}
+        title="Hapus artikel ini?"
+        description={
+          <>
+            <strong className="text-[#111c2d]">{pending?.title}</strong> akan dihapus
+            permanen beserta lampirannya.
+          </>
+        }
+        onCancel={() => setPending(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

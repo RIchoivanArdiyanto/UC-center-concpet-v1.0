@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { handleApiError, requireAdmin, scopeToCenter } from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
+
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const role = (session.user as any).role;
-    const centerId = (session.user as any).centerId;
-
-    // CENTER_ADMIN strictly scoped at DB level
-    const where = role === "CENTER_ADMIN" && centerId ? { centerId } : {};
+    const user = await requireAdmin(PERMISSIONS.LEADS_VIEW);
 
     const leads = await prisma.lead.findMany({
-      where,
+      where: scopeToCenter(user),
       include: {
         center: { select: { name: true } },
         handledBy: { select: { name: true } },
@@ -24,7 +23,7 @@ export async function GET() {
     });
 
     return NextResponse.json(leads);
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to fetch leads." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Leads GET", error);
   }
 }

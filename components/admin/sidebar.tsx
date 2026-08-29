@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { clsx } from "clsx";
 import {
   LayoutDashboard,
   Building2,
@@ -15,88 +16,201 @@ import {
   Users,
   Building,
   ShieldCheck,
+  History,
+  UserCog,
+  Menu,
+  X,
 } from "lucide-react";
+import { PERMISSIONS, type Permission } from "@/lib/permissions";
+
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  permission: Permission;
+};
+
+type NavSection = { section: string; items: NavItem[] };
+
+// Menu dikelompokkan dan tiap entri membawa permission-nya sendiri, jadi user
+// hanya melihat yang benar-benar bisa ia buka. (Penegakan sesungguhnya tetap
+// di server — lihat `requireAdmin` di lib/api.ts.)
+const NAV: NavSection[] = [
+  {
+    section: "Ringkasan",
+    items: [
+      { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, permission: PERMISSIONS.DASHBOARD_VIEW },
+    ],
+  },
+  {
+    section: "Konten",
+    items: [
+      { name: "Kelola Center", href: "/admin/centers", icon: Building2, permission: PERMISSIONS.CENTERS_VIEW },
+      { name: "Kelola Portfolio", href: "/admin/portfolio", icon: Briefcase, permission: PERMISSIONS.PORTFOLIO_VIEW },
+      { name: "Kelola Artikel", href: "/admin/articles", icon: FileText, permission: PERMISSIONS.ARTICLES_VIEW },
+      { name: "Konten Situs", href: "/admin/homepage", icon: Home, permission: PERMISSIONS.HOMEPAGE_MANAGE },
+    ],
+  },
+  {
+    section: "Master Data",
+    items: [
+      { name: "Taksonomi Expertise", href: "/admin/expertise", icon: Tags, permission: PERMISSIONS.EXPERTISE_MANAGE },
+      { name: "Mitra Client", href: "/admin/clients", icon: Building, permission: PERMISSIONS.CLIENTS_MANAGE },
+    ],
+  },
+  {
+    section: "Permohonan",
+    items: [
+      { name: "Kelola Leads", href: "/admin/leads", icon: Users, permission: PERMISSIONS.LEADS_VIEW },
+    ],
+  },
+  {
+    section: "Sistem",
+    items: [
+      { name: "Users & Hak Akses", href: "/admin/users", icon: UserCog, permission: PERMISSIONS.USERS_MANAGE },
+      { name: "Activity Log", href: "/admin/activity", icon: History, permission: PERMISSIONS.ACTIVITY_VIEW },
+    ],
+  },
+];
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const role = (session?.user as any)?.role || "CENTER_ADMIN";
+  const permissions = session?.user?.permissions ?? [];
+  const roleName = session?.user?.roleName ?? "—";
 
-  const navItems = [
-    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Kelola Center", href: "/admin/centers", icon: Building2 },
-    { name: "Taksonomi Expertise", href: "/admin/expertise", icon: Tags },
-    { name: "Kelola Portfolio", href: "/admin/portfolio", icon: Briefcase },
-    { name: "Kelola Artikel", href: "/admin/articles", icon: FileText },
-    { name: "Kelola Mitra Client", href: "/admin/clients", icon: Building },
-    { name: "Konten Beranda", href: "/admin/homepage", icon: Home },
-    { name: "Kelola Leads", href: "/admin/leads", icon: Users },
-  ];
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
-  const isActive = (href: string) => {
-    if (href === "/admin/dashboard" && pathname === "/admin/dashboard") return true;
-    if (href !== "/admin/dashboard" && pathname.startsWith(href)) return true;
-    return false;
-  };
+  const visibleSections = NAV.map((s) => ({
+    ...s,
+    items: s.items.filter((i) => permissions.includes(i.permission)),
+  })).filter((s) => s.items.length > 0);
 
-  return (
-    <aside className="w-[260px] bg-[#003366] text-white flex flex-col justify-between flex-shrink-0 min-h-screen border-r border-blue-900 shadow-xl">
-      <div className="p-6 space-y-6">
-        {/* Brand with UC Emblem */}
-        <Link href="/admin/dashboard" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-white border border-amber-400/40 p-0.5 shadow-md flex-shrink-0 flex items-center justify-center">
+  const content = (
+    <>
+      <div className="space-y-6 p-6">
+        <Link
+          href="/admin/dashboard"
+          className="flex items-center gap-3"
+          onClick={() => setMobileOpen(false)}
+        >
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-400/40 bg-white p-0.5 shadow-md">
             <Image
               src="/logo-uc.png"
-              alt="UC Emblem"
+              alt=""
               width={36}
               height={36}
               style={{ width: "36px", height: "36px", objectFit: "contain" }}
             />
           </div>
           <div>
-            <div className="font-extrabold text-lg text-white tracking-tight">UC Centers</div>
-            <div className="text-[10px] text-blue-300 uppercase tracking-widest font-semibold">Admin Panel</div>
+            <div className="text-lg font-extrabold tracking-tight text-white">UC Centers</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-blue-300">
+              Admin Panel
+            </div>
           </div>
         </Link>
 
-        {/* Role Badge */}
-        <div className="px-3 py-2 rounded-lg bg-blue-900/60 border border-blue-800 flex items-center gap-2 text-xs">
-          <ShieldCheck className="w-4 h-4 text-blue-400 flex-shrink-0" />
-          <div className="truncate">
-            <span className="text-slate-300 block text-[10px]">Akses Pengguna:</span>
-            <span className="font-bold text-white uppercase tracking-wider">{role}</span>
-          </div>
-        </div>
+        <nav className="space-y-5">
+          {visibleSections.map((section) => (
+            <div key={section.section} className="space-y-1">
+              <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-blue-300/70">
+                {section.section}
+              </div>
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={clsx(
+                      "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                      active
+                        ? "bg-white/12 font-semibold text-white"
+                        : "text-blue-100/80 hover:bg-white/8 hover:text-white"
+                    )}
+                  >
+                    {active && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-amber-400"
+                      />
+                    )}
+                    <Icon className="h-[18px] w-[18px] flex-shrink-0" />
+                    <span className="truncate">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
 
-        {/* Nav Links */}
-        <nav className="space-y-1 pt-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-                  active
-                    ? "bg-[#1E40AF] text-white shadow-md font-bold"
-                    : "text-slate-300 hover:bg-blue-900/40 hover:text-white"
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${active ? "text-blue-300" : "text-slate-400"}`} />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+          {visibleSections.length === 0 && (
+            <p className="px-3 text-xs leading-relaxed text-blue-200/70">
+              Role Anda belum diberi hak akses ke menu mana pun. Hubungi administrator.
+            </p>
+          )}
         </nav>
       </div>
 
-      {/* Footer Version Watermark */}
-      <div className="p-6 border-t border-blue-900/80 text-[11px] text-slate-400">
-        <div>UC Centers Admin</div>
-        <div className="text-[10px] text-slate-500 mt-0.5">Versi v2.1.0 System</div>
+      <div className="border-t border-white/10 p-6">
+        <div className="flex items-center gap-2.5 rounded-lg bg-white/8 px-3 py-2.5">
+          <ShieldCheck className="h-4 w-4 flex-shrink-0 text-amber-400" />
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-blue-300/70">Role Anda</div>
+            <div className="truncate text-xs font-bold text-white">{roleName}</div>
+          </div>
+        </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Tombol buka menu di layar kecil. Sebelumnya sidebar lebar 260px selalu
+          tampil sehingga di ponsel konten utama terdorong keluar layar. */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Buka menu navigasi"
+        className="fixed left-4 top-3.5 z-40 rounded-lg bg-[#003366] p-2 text-white shadow-lg lg:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={clsx(
+          "fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col justify-between overflow-y-auto border-r border-blue-900/60 bg-[#003366] text-white shadow-xl transition-transform duration-200",
+          // `shrink-0` WAJIB: di lg ke atas aside menjadi item flex biasa, dan
+          // tanpa ini flexbox memampatkannya begitu konten utama lebar (halaman
+          // edit center/artikel) — labelnya terpotong jadi "K...", "Ke...".
+          "lg:static lg:z-auto lg:w-[264px] lg:shrink-0 lg:translate-x-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Tutup menu navigasi"
+          className="absolute right-3 top-3 rounded-lg p-2 text-blue-200 hover:bg-white/10 lg:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        {content}
+      </aside>
+    </>
   );
 }

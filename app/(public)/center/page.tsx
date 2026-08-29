@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCachedData, setCachedData } from "@/lib/redis";
+import { getCachedData, setCachedData } from "@/lib/cache";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Search, SlidersHorizontal } from "lucide-react";

@@ -1,0 +1,66 @@
+# ============================================================================
+#  Overlay PRODUKSI (VPS).
+#
+#  Pakai dengan MEMBUANG override development, kalau tidak port database ikut
+#  terbuka ke internet:
+#
+#    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+#  Perhatikan `-f` yang eksplisit: menyebut file secara manual membuat Docker
+#  Compose TIDAK memuat docker-compose.override.yml secara otomatis. Itulah
+#  yang menutup port 5440 (PostgreSQL) dan 3100 (app) dari luar.
+# ============================================================================
+
+services:
+  db:
+    # Tanpa `ports:`, PostgreSQL hanya bisa dihubungi dari dalam jaringan
+    # Docker `uc-net`. Untuk mengaksesnya dari laptop, gunakan terowongan SSH:
+    #   ssh -L 5440:localhost:5432 user@vps -N
+    # (lalu `docker compose exec db psql -U postgres uccenters` di server).
+    ports: !reset []
+    # Postgres wajib menolak koneksi tanpa password terenkripsi, dan password
+    # DB_PASSWORD wajib diganti dari nilai contoh.
+    command:
+      - "postgres"
+      - "-c"
+      - "password_encryption=scram-sha-256"
+      - "-c"
+      - "listen_addresses=*"
+
+  app:
+    ports: !reset []
+    environment:
+      NODE_ENV: production
+      # Wajib diisi di .env; aplikasi menolak start bila kosong/terlalu pendek.
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET wajib diisi (openssl rand -base64 32)}
+      # Wajib domain HTTPS produksi, bukan localhost — dipakai NextAuth untuk
+      # membentuk URL callback dan menentukan cookie aman.
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?NEXTAUTH_URL wajib diisi, mis. https://uccenters.id}
+      # DATABASE_URL ditulis ulang di sini, bukan cuma menyetel DB_PASSWORD:
+      # nilai DATABASE_URL sudah dirakit di docker-compose.yml, jadi menaruh
+      # DB_PASSWORD di blok environment app tidak berpengaruh apa pun.
+      # `:?` membuat Compose menolak start bila password belum diisi di .env.
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:?DB_PASSWORD wajib diisi dan diganti dari nilai contoh}@db:5432/${DB_NAME:-uccenters}?schema=public
+      # Seed hanya perlu jalan sekali. Setelah admin pertama dibuat dan
+      # passwordnya diganti, set SKIP_SEED=true agar seed tidak menimpanya lagi.
+      SKIP_SEED: ${SKIP_SEED:-false}
+    # Pengerasan runtime: proses di dalam kontainer tidak butuh tambahan
+    # privilege apa pun, dan filesystem image bersifat read-only.
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+
+  nginx:
+    # `!override` WAJIB di sini. Tanpanya, Compose MENGGABUNG
+    # daftar ports dengan milik docker-compose.yml sehingga pemetaan
+    # 0.0.0.0:8090 dari file dasar tetap ikut aktif dan kontainer justru
+    # terbuka ke seluruh internet.
+    ports: !override
+      # Di VPS, port 80/443 ditangani reverse proxy host + TLS (Caddy/Nginx
+      # host/Cloudflare). Kontainer ini cukup mendengarkan di loopback.
+      - "127.0.0.1:${WEB_PORT:-8090}:80"
+    security_opt:
+      - no-new-privileges:true

@@ -27,31 +27,56 @@ datasource db {
 // AUTH & ADMIN
 // ------------------------------------------------------------
 
-enum AdminRole {
-  SUPER_ADMIN   // akses semua center
-  CENTER_ADMIN  // akses dibatasi ke centerId miliknya — batasan ini WAJIB
-                // ditegakkan di application layer (middleware/query filter),
-                // schema tidak bisa memaksanya sendiri.
+// Lingkup akses sebuah role. Menentukan apakah pemiliknya melihat seluruh
+// center atau hanya center yang ditugaskan padanya. Penegakannya di
+// application layer (lib/api.ts) — schema tidak bisa memaksanya sendiri.
+enum AdminScope {
+  ALL_CENTERS
+  OWN_CENTER
+}
+
+// Role menggantikan enum AdminRole yang lama. Dengan tabel sendiri, admin bisa
+// membuat role baru dan mengatur hak aksesnya dari panel tanpa deploy ulang.
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  scope       AdminScope @default(OWN_CENTER)
+  // Daftar kunci permission (lihat lib/permissions.ts). Disimpan sebagai array
+  // teks Postgres — jumlah kuncinya tetap dan selalu dibaca sekaligus, jadi
+  // tabel join tersendiri hanya menambah kerumitan tanpa manfaat.
+  permissions String[]   @default([])
+  // Role bawaan sistem tidak boleh dihapus agar tidak ada admin yang terkunci
+  // di luar sistemnya sendiri.
+  isSystem    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  users AdminUser[]
 }
 
 model AdminUser {
-  id           String      @id @default(cuid())
+  id           String    @id @default(cuid())
   name         String
-  email        String      @unique
+  username     String    @unique // dipakai untuk login selain email
+  email        String    @unique
   passwordHash String
-  role         AdminRole   @default(CENTER_ADMIN)
-  centerId     String?     // null untuk SUPER_ADMIN
-  center       Center?     @relation(fields: [centerId], references: [id], onDelete: SetNull)
-  isActive     Boolean     @default(true)
+  roleId       String
+  role         Role      @relation(fields: [roleId], references: [id])
+  centerId     String? // wajib diisi untuk role ber-scope OWN_CENTER
+  center       Center?   @relation(fields: [centerId], references: [id], onDelete: SetNull)
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  articles       Article[]
-  activityLogs   ActivityLog[]
-  handledLeads   Lead[]        @relation("LeadHandledBy")
+  articles     Article[]
+  activityLogs ActivityLog[]
+  handledLeads Lead[]        @relation("LeadHandledBy")
 
   @@index([centerId])
+  @@index([roleId])
 }
 
 // ------------------------------------------------------------
@@ -62,7 +87,7 @@ model ExpertiseTag {
   id        String   @id @default(cuid())
   name      String   @unique
   slug      String   @unique
-  colorHex  String?  // untuk badge warna konsisten lintas halaman
+  colorHex  String? // untuk badge warna konsisten lintas halaman
   createdAt DateTime @default(now())
 
   centers  CenterExpertise[]
@@ -79,18 +104,18 @@ enum HeroMediaType {
 }
 
 model Center {
-  id             String        @id @default(cuid())
-  name           String
-  slug           String        @unique
-  tagline        String?
-  logoUrl        String?
-  heroMediaType  HeroMediaType @default(IMAGE)
-  heroMediaUrl   String?       // image URL ATAU embed URL video (YouTube/Vimeo)
-  aboutContent   String?       @db.Text
-  profilePdfUrl  String?       // tombol "Unduh Profil"
-  isPublished    Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  name          String
+  slug          String        @unique
+  tagline       String?
+  logoUrl       String?
+  heroMediaType HeroMediaType @default(IMAGE)
+  heroMediaUrl  String? // image URL ATAU embed URL video (YouTube/Vimeo)
+  aboutContent  String?       @db.Text
+  profilePdfUrl String? // tombol "Unduh Profil"
+  isPublished   Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   expertiseTags CenterExpertise[]
   services      CenterService[]
@@ -113,12 +138,12 @@ model CenterExpertise {
 }
 
 model CenterService {
-  id        String   @id @default(cuid())
-  centerId  String
-  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
-  title     String
+  id          String  @id @default(cuid())
+  centerId    String
+  center      Center  @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  title       String
   description String?
-  sortOrder Int      @default(0)
+  sortOrder   Int     @default(0)
 
   @@index([centerId])
 }
@@ -129,6 +154,7 @@ model TeamMember {
   center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
   name      String
   role      String
+  email     String?  // ditampilkan di halaman center saat namanya diklik
   photoUrl  String?
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -140,7 +166,7 @@ model ClientLogo {
   id        String   @id @default(cuid())
   name      String
   logoUrl   String
-  centerId  String?  // null = tampil global (Beranda), diisi = khusus 1 center
+  centerId  String? // null = tampil global (Beranda), diisi = khusus 1 center
   center    Center?  @relation(fields: [centerId], references: [id], onDelete: Cascade)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -161,7 +187,7 @@ model PortfolioProject {
   summary          String?
   caseStudyContent String?  @db.Text
   coverImageUrl    String?
-  videoEmbedUrl    String?  // opsional, embed YouTube/Vimeo
+  videoEmbedUrl    String? // opsional, embed YouTube/Vimeo
   isHighlighted    Boolean  @default(false) // tampil di Beranda
   isPublished      Boolean  @default(true)
   createdAt        DateTime @default(now())
@@ -200,22 +226,22 @@ model ArticleCategory {
 }
 
 model Article {
-  id              String           @id @default(cuid())
-  title           String
-  slug            String           @unique
-  summary         String?
-  content         String           @db.Text
-  coverImageUrl   String?
-  categoryId      String?
-  category        ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  status          ArticleStatus    @default(DRAFT)
-  publishedAt     DateTime?
-  seoTitle        String?
-  seoDescription  String?
-  authorId        String?
-  author          AdminUser?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id             String           @id @default(cuid())
+  title          String
+  slug           String           @unique
+  summary        String?
+  content        String           @db.Text
+  coverImageUrl  String?
+  categoryId     String?
+  category       ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  status         ArticleStatus    @default(DRAFT)
+  publishedAt    DateTime?
+  seoTitle       String?
+  seoDescription String?
+  authorId       String?
+  author         AdminUser?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   attachments ArticleAttachment[]
 
@@ -227,10 +253,10 @@ model ArticleAttachment {
   id            String   @id @default(cuid())
   articleId     String
   article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  fileUrl       String   // URL di object storage — WAJIB bucket public-read khusus folder ini
+  fileUrl       String // URL di object storage — WAJIB bucket public-read khusus folder ini
   fileName      String
   fileSizeBytes Int?
-  mimeType      String?  // validasi whitelist mime type dilakukan di application layer sebelum upload
+  mimeType      String? // validasi whitelist mime type dilakukan di application layer sebelum upload
   createdAt     DateTime @default(now())
 
   @@index([articleId])
@@ -253,19 +279,20 @@ enum LeadStatus {
 }
 
 model Lead {
-  id             String     @id @default(cuid())
-  centerId       String?
-  center         Center?    @relation(fields: [centerId], references: [id], onDelete: SetNull)
-  name           String
-  email          String
-  phone          String?
-  message        String?    @db.Text
-  source         LeadSource
-  status         LeadStatus @default(NEW)
-  handledById    String?
-  handledBy      AdminUser? @relation("LeadHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id          String     @id @default(cuid())
+  centerId    String?
+  center      Center?    @relation(fields: [centerId], references: [id], onDelete: SetNull)
+  name        String
+  email       String
+  phone       String?
+  subject     String? // judul singkat dari form Kontak
+  message     String?    @db.Text
+  source      LeadSource
+  status      LeadStatus @default(NEW)
+  handledById String?
+  handledBy   AdminUser? @relation("LeadHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([centerId])
   @@index([status])
@@ -276,14 +303,14 @@ model Lead {
 // ------------------------------------------------------------
 
 model ActivityLog {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   actorId    String
   actor      AdminUser @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  action     String   // "CREATE" | "UPDATE" | "DELETE" | "PUBLISH" | dst — pakai konstanta di app layer
-  entityType String   // "Center" | "Article" | "PortfolioProject" | dst
+  action     String // "CREATE" | "UPDATE" | "DELETE" | "PUBLISH" | dst — pakai konstanta di app layer
+  entityType String // "Center" | "Article" | "PortfolioProject" | dst
   entityId   String
-  metadata   Json?    // simpan before/after value kalau perlu audit detail
-  createdAt  DateTime @default(now())
+  metadata   Json? // simpan before/after value kalau perlu audit detail
+  createdAt  DateTime  @default(now())
 
   @@index([actorId])
   @@index([entityType, entityId])

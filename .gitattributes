@@ -1,0 +1,6 @@
+# Script shell WAJIB LF. Kalau ter-checkout dengan CRLF di Windows, kontainer
+# alpine gagal start dengan "exec format error" / "no such file or directory".
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+*.sql text eol=lf

@@ -6,7 +6,16 @@ export async function middleware(req: NextRequest) {
 
   // Protect /admin routes (except /admin/login)
   if (path.startsWith("/admin") && path !== "/admin/login") {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET || "uc_centers_super_secret_jwt_key_32_chars_min" });
+    // Secret dibaca dari env saja — nilai cadangan hardcoded di sini akan
+    // membuat middleware menerima token yang ditandatangani rahasia publik.
+    const token = await getToken({
+      req,
+      secret:
+        process.env.NEXTAUTH_SECRET ||
+        (process.env.NODE_ENV === "production"
+          ? undefined
+          : "dev-only-insecure-secret-do-not-use-in-production"),
+    });
 
     if (!token) {
       const loginUrl = new URL("/admin/login", req.url);

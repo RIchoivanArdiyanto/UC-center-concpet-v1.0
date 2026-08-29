@@ -1,0 +1,128 @@
+// ============================================================================
+//  Konten situs yang dikelola dari panel admin (tabel SiteSetting).
+//
+//  Blok default ini sebelumnya disalin identik di app/(public)/page.tsx dan
+//  app/api/admin/homepage/route.ts. Begitu salah satunya diedit, tampilan
+//  publik dan form admin bisa menampilkan teks default yang berbeda. Sekarang
+//  satu sumber untuk semuanya — termasuk untuk merender form di panel admin.
+// ============================================================================
+
+export type SiteSettings = Record<string, string>;
+
+export const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  // ── Hero beranda ──────────────────────────────────────────────────────────
+  hero_headline: "Menghubungkan Riset Akademik & Inovasi Industri Terdepan",
+  hero_subheadline:
+    "UC Centers menghadirkan solusi kolaboratif melalui riset terapan berstandar internasional, konsultasi bisnis strategis, dan program pelatihan SDM profesional.",
+  hero_image_url:
+    "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1000&q=80",
+
+  // ── Trust strip ───────────────────────────────────────────────────────────
+  stat1_number: "12",
+  stat1_label: "CENTER OF EXCELLENCE",
+  stat2_number: "500+",
+  stat2_label: "PROYEK SELESAI",
+  stat3_number: "300+",
+  stat3_label: "MITRA KORPORASI",
+  stat4_number: "20",
+  stat4_label: "TAHUN PENGALAMAN",
+
+  // ── Informasi kontak ──────────────────────────────────────────────────────
+  // Dipakai bersama oleh kartu "Informasi Kantor Pusat" di /kontak dan blok
+  // kontak di footer, supaya keduanya tidak pernah berbeda isi.
+  contact_address: "Jl. CitraLand Boulevard, Made, Sambikerep, Surabaya, Jawa Timur 60219",
+  contact_phone: "(031) 7451699",
+  contact_email: "contact@uccenters.id",
+  contact_hours: "Senin – Jumat: 08:00 – 17:00 WIB",
+  contact_map_title: "UC Centers Headquarters",
+  contact_map_subtitle: "Surabaya, Indonesia",
+
+  // ── Media sosial ──────────────────────────────────────────────────────────
+  // Kosongkan salah satu untuk menyembunyikan ikonnya dari situs publik.
+  social_instagram: "",
+  social_youtube: "",
+};
+
+/**
+ * Definisi form pengaturan di panel admin.
+ *
+ * Ditaruh di sini, bukan ditulis ulang sebagai puluhan `useState` di halaman
+ * admin, supaya menambah satu pengaturan baru cukup dengan menambah satu baris
+ * di file ini — form, nilai default, dan payload simpan ikut menyesuaikan.
+ */
+export type SettingField = {
+  key: string;
+  label: string;
+  type?: "text" | "textarea" | "url" | "email" | "image";
+  placeholder?: string;
+  hint?: string;
+  /** Lebar penuh pada grid dua kolom. */
+  wide?: boolean;
+};
+
+export const SETTING_SECTIONS: {
+  section: string;
+  description: string;
+  fields: SettingField[];
+}[] = [
+  {
+    section: "Hero Beranda",
+    description: "Judul, deskripsi, dan gambar utama di bagian paling atas beranda.",
+    fields: [
+      { key: "hero_headline", label: "Judul Utama", wide: true },
+      { key: "hero_subheadline", label: "Deskripsi Pendukung", type: "textarea", wide: true },
+      { key: "hero_image_url", label: "Foto Utama Hero", type: "image", wide: true },
+    ],
+  },
+  {
+    section: "Trust Strip",
+    description: "Empat angka capaian yang tampil di bawah hero.",
+    fields: [
+      { key: "stat1_number", label: "Angka 1" },
+      { key: "stat1_label", label: "Keterangan 1" },
+      { key: "stat2_number", label: "Angka 2" },
+      { key: "stat2_label", label: "Keterangan 2" },
+      { key: "stat3_number", label: "Angka 3" },
+      { key: "stat3_label", label: "Keterangan 3" },
+      { key: "stat4_number", label: "Angka 4" },
+      { key: "stat4_label", label: "Keterangan 4" },
+    ],
+  },
+  {
+    section: "Informasi Kontak",
+    description:
+      "Dipakai bersama oleh kartu di halaman Kontak dan blok kontak di footer — cukup diubah sekali di sini.",
+    fields: [
+      { key: "contact_address", label: "Alamat Utama", type: "textarea", wide: true },
+      { key: "contact_phone", label: "Telepon" },
+      { key: "contact_email", label: "Email Resmi", type: "email" },
+      { key: "contact_hours", label: "Jam Operasional", wide: true },
+      { key: "contact_map_title", label: "Judul pada Kartu Peta" },
+      { key: "contact_map_subtitle", label: "Keterangan pada Kartu Peta" },
+    ],
+  },
+  {
+    section: "Media Sosial",
+    description:
+      "Isi alamat lengkap profilnya. Kolom yang dikosongkan tidak akan tampil di situs.",
+    fields: [
+      {
+        key: "social_instagram",
+        label: "Instagram",
+        type: "url",
+        placeholder: "https://instagram.com/uccenters",
+        hint: "Kosongkan untuk menyembunyikan ikon Instagram.",
+      },
+      {
+        key: "social_youtube",
+        label: "YouTube",
+        type: "url",
+        placeholder: "https://youtube.com/@uccenters",
+        hint: "Kosongkan untuk menyembunyikan ikon YouTube.",
+      },
+    ],
+  },
+];
+
+/** Semua kunci yang boleh disimpan lewat panel. */
+export const SETTING_KEYS = SETTING_SECTIONS.flatMap((s) => s.fields.map((f) => f.key));

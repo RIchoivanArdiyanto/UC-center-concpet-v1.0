@@ -1,43 +1,55 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
+import { uniqueSlug } from "@/lib/slug";
+import { handleApiError, readJson, requireAdmin, requireField } from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
+
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
 
 export async function GET() {
   try {
+    // Daftar tag dipakai form admin (center & portfolio), jadi tetap butuh sesi.
+    // Versi lama membiarkan endpoint ini terbuka tanpa autentikasi.
+    await requireAdmin(PERMISSIONS.CENTERS_VIEW);
+
     const tags = await prisma.expertiseTag.findMany({
-      include: {
-        _count: {
-          select: { centers: true, projects: true },
-        },
-      },
+      include: { _count: { select: { centers: true, projects: true } } },
       orderBy: { name: "asc" },
     });
+
     return NextResponse.json(tags);
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to fetch tags." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Expertise GET", error);
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await requireAdmin(PERMISSIONS.EXPERTISE_MANAGE);
+    const body = await readJson<Record<string, any>>(req);
 
-    const actorId = (session.user as any).id;
-    const { name, colorHex } = await req.json();
+    const name = (requireField(body.name, "Nama tag") as string).trim();
 
-    if (!name) return NextResponse.json({ error: "Nama tag wajib diisi." }, { status: 400 });
+    const slug = await uniqueSlug(
+      name,
+      async (candidate) =>
+        (await prisma.expertiseTag.count({ where: { slug: candidate } })) > 0,
+      "tag"
+    );
 
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-
+    // Nama tag unik di schema — duplikat dipetakan jadi 409 oleh handleApiError,
+    // bukan 500 generik seperti sebelumnya.
     const tag = await prisma.expertiseTag.create({
-      data: { name, slug, colorHex },
+      data: { name, slug, colorHex: body.colorHex ?? null },
     });
 
     await logActivity({
-      actorId,
+      actorId: user.id,
       action: "CREATE",
       entityType: "ExpertiseTag",
       entityId: tag.id,
@@ -45,7 +57,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(tag, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to create tag." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Expertise POST", error);
   }
 }

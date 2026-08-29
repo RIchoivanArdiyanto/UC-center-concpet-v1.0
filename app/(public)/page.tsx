@@ -2,7 +2,8 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCachedData, setCachedData } from "@/lib/redis";
+import { getCachedData, setCachedData } from "@/lib/cache";
+import { DEFAULT_SITE_SETTINGS } from "@/lib/site-settings";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,19 +88,7 @@ export default async function HomePage() {
   let highlightedProjects: any[] = [];
   let partnerLogos: any[] = [];
 
-  let siteSettings: Record<string, string> = {
-    hero_headline: "Menghubungkan Riset Akademik & Inovasi Industri Terdepan",
-    hero_subheadline: "UC Centers menghadirkan solusi kolaboratif melalui riset terapan berstandar internasional, konsultasi bisnis strategis, dan program pelatihan SDM profesional.",
-    hero_image_url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1000&q=80",
-    stat1_number: "12",
-    stat1_label: "CENTER OF EXCELLENCE",
-    stat2_number: "500+",
-    stat2_label: "PROYEK SELESAI",
-    stat3_number: "300+",
-    stat3_label: "MITRA KORPORASI",
-    stat4_number: "20",
-    stat4_label: "TAHUN PENGALAMAN",
-  };
+  const siteSettings: Record<string, string> = { ...DEFAULT_SITE_SETTINGS };
 
   try {
     const dbSettings = await prisma.siteSetting.findMany();

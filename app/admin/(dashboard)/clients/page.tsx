@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
+import { FileUploadField } from "@/components/ui/file-upload-field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { errorMessage, fetchJson } from "@/lib/fetch-json";
 import { Plus, Trash2, Building, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function AdminClientsPage() {
+  const toast = useToast();
   const [clients, setClients] = useState<any[]>([]);
   const [centers, setCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,32 +23,35 @@ export default function AdminClientsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchData = async () => {
-    try {
-      const [resClients, resCenters] = await Promise.all([
-        fetch("/api/admin/clients"),
-        fetch("/api/admin/centers"),
-      ]);
+  const [pending, setPending] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-      if (resClients.ok) setClients(await resClients.json());
-      if (resCenters.ok) setCenters(await resCenters.json());
+  const fetchData = useCallback(async () => {
+    try {
+      const [c, ct] = await Promise.all([
+        fetchJson<any[]>("/api/admin/clients"),
+        // Daftar center hanya untuk dropdown opsional; kegagalannya tidak boleh
+        // menggagalkan seluruh halaman.
+        fetchJson<any[]>("/api/admin/centers").catch(() => [] as any[]),
+      ]);
+      setClients(c);
+      setCenters(ct);
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal memuat data mitra", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError("");
 
-    // Validate file extensions
     const lowerUrl = logoUrl.toLowerCase();
     if (!lowerUrl.match(/\.(jpg|jpeg|png|webp)(\?.*)?$/i) && !lowerUrl.includes("images.unsplash.com")) {
       setError("Format logo wajib bertipe JPG, PNG, atau WEBP.");
@@ -52,32 +60,36 @@ export default function AdminClientsPage() {
     }
 
     try {
-      const res = await fetch("/api/admin/clients", {
+      await fetchJson("/api/admin/clients", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, logoUrl, centerId: centerId || null }),
       });
-
-      if (!res.ok) throw new Error("Gagal menambah logo mitra.");
-
+      toast.success("Logo mitra ditambahkan", name);
       setName("");
       setLogoUrl("");
       setCenterId("");
       fetchData();
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan.");
+    } catch (err) {
+      // Pesan galat asli dari server ditampilkan, bukan "Gagal menambah logo
+      // mitra." yang menutupi penyebab sebenarnya (mis. URL duplikat / 403).
+      setError(errorMessage(err));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus logo mitra ini?")) return;
+  const confirmDelete = async () => {
+    if (!pending) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/clients/${id}`, { method: "DELETE" });
-      if (res.ok) fetchData();
+      await fetchJson(`/api/admin/clients/${pending.id}`, { method: "DELETE" });
+      toast.success("Logo mitra dihapus", pending.name);
+      setPending(null);
+      fetchData();
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal menghapus", errorMessage(err));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -118,19 +130,14 @@ export default function AdminClientsPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                URL Logo (Wajib JPG, PNG, WEBP) <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="url"
-                required
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://example.com/logo-perusahaan.png"
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
-              />
-            </div>
+            <FileUploadField
+              label="Logo Perusahaan"
+              kind="image"
+              required
+              value={logoUrl}
+              onChange={setLogoUrl}
+              hint="Tampil pada marquee mitra di beranda."
+            />
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Penempatan Logo</label>
@@ -176,7 +183,7 @@ export default function AdminClientsPage() {
                   </div>
 
                   <button
-                    onClick={() => handleDelete(c.id)}
+                    onClick={() => setPending({ id: c.id, name: c.name })}
                     className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
                     title="Hapus Logo"
                   >
@@ -188,6 +195,20 @@ export default function AdminClientsPage() {
           )}
         </Card>
       </div>
+
+      <ConfirmDialog
+        isOpen={pending !== null}
+        loading={deleting}
+        title="Hapus logo mitra ini?"
+        description={
+          <>
+            <strong className="text-[#111c2d]">{pending?.name}</strong> akan hilang dari
+            marquee beranda.
+          </>
+        }
+        onCancel={() => setPending(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

@@ -1,44 +1,43 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MobileTableCard } from "@/components/ui/mobile-table-card";
+import { useToast } from "@/components/ui/toast";
+import { errorMessage, fetchJson } from "@/lib/fetch-json";
 import { Mail, Phone, Calendar, CheckCircle2, Clock } from "lucide-react";
 
 export default function AdminLeadsPage() {
+  const toast = useToast();
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchLeads = async () => {
+  const fetchLeads = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/leads");
-      if (res.ok) {
-        const data = await res.json();
-        setLeads(data);
-      }
+      setLeads(await fetchJson<any[]>("/api/admin/leads"));
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal memuat lead", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchLeads();
-  }, []);
+  }, [fetchLeads]);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
-      const res = await fetch(`/api/admin/leads/${id}`, {
+      await fetchJson(`/api/admin/leads/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) fetchLeads();
+      toast.success("Status lead diperbarui", `Ditandai sebagai ${newStatus}.`);
+      fetchLeads();
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal memperbarui status", errorMessage(err));
     }
   };
 
@@ -61,7 +60,7 @@ export default function AdminLeadsPage() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-                    <th className="p-4">Nama Lengkap & Pesan</th>
+                    <th className="p-4">Nama & Subjek</th>
                     <th className="p-4">Kontak</th>
                     <th className="p-4">Target Center / Sumber</th>
                     <th className="p-4">Status</th>
@@ -74,7 +73,14 @@ export default function AdminLeadsPage() {
                     <tr key={lead.id} className="hover:bg-slate-50">
                       <td className="p-4 max-w-xs">
                         <div className="font-bold text-[#111c2d]">{lead.name}</div>
-                        <div className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">{lead.message}</div>
+                        {/* Subjek kini kolom tersendiri di database, jadi bisa
+                            ditonjolkan alih-alih terkubur di dalam isi pesan. */}
+                        {lead.subject && (
+                          <div className="mt-0.5 truncate text-[11px] font-semibold text-[#0b64b4]">
+                            {lead.subject}
+                          </div>
+                        )}
+                        <div className="mt-0.5 line-clamp-2 text-[11px] text-slate-600">{lead.message}</div>
                       </td>
                       <td className="p-4 space-y-1">
                         <div className="flex items-center gap-1 text-slate-700">
@@ -130,7 +136,7 @@ export default function AdminLeadsPage() {
                 <MobileTableCard
                   key={lead.id}
                   title={lead.name}
-                  subtitle={lead.email}
+                  subtitle={lead.subject || lead.email}
                   statusBadge={
                     <Badge variant={lead.status === "NEW" ? "warning" : "success"}>
                       {lead.status}

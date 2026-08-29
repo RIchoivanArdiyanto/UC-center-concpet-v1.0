@@ -1,24 +1,30 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { invalidateCachePattern } from "@/lib/redis";
+import { invalidateCachePattern } from "@/lib/cache";
 import { logActivity } from "@/lib/activity-log";
+import { uniqueSlug } from "@/lib/slug";
+import {
+  assertCenterAccess,
+  handleApiError,
+  readJson,
+  requireAdmin,
+  requireField,
+  scopeToCenter,
+} from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
 
-export async function GET(req: Request) {
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
+
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const role = (session.user as any).role;
-    const centerId = (session.user as any).centerId;
-
-    const where = role === "CENTER_ADMIN" && centerId ? { centerId } : {};
+    const user = await requireAdmin(PERMISSIONS.PORTFOLIO_VIEW);
 
     const projects = await prisma.portfolioProject.findMany({
-      where,
+      where: scopeToCenter(user),
       include: {
         center: { select: { name: true, slug: true } },
         expertiseTags: { include: { tag: true } },
@@ -27,59 +33,55 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json(projects);
-  } catch (error: any) {
-    console.error("[Admin Portfolio GET Error]:", error);
-    return NextResponse.json({ error: "Failed to fetch portfolio projects." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Portfolio GET", error);
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAdmin(PERMISSIONS.PORTFOLIO_MANAGE);
+    const body = await readJson<Record<string, any>>(req);
 
-    const actorId = (session.user as any).id;
-    const role = (session.user as any).role;
-    const userCenterId = (session.user as any).centerId;
+    // Role ber-scope OWN_CENTER selalu dipaksa ke center miliknya, apa pun isi body.
+    const targetCenterId =
+      user.scope === "OWN_CENTER" && user.centerId ? user.centerId : body.centerId;
 
-    const body = await req.json();
-    const { centerId, title, summary, caseStudyContent, coverImageUrl, videoEmbedUrl, isHighlighted, isPublished, tagIds } = body;
+    requireField(targetCenterId, "Center");
+    const title = (requireField(body.title, "Judul proyek") as string).trim();
+    assertCenterAccess(user, targetCenterId);
 
-    const targetCenterId = role === "CENTER_ADMIN" && userCenterId ? userCenterId : centerId;
+    const slug = await uniqueSlug(
+      title,
+      async (candidate) =>
+        (await prisma.portfolioProject.count({ where: { slug: candidate } })) > 0,
+      "proyek"
+    );
 
-    if (!targetCenterId || !title) {
-      return NextResponse.json({ error: "Center dan judul proyek wajib diisi." }, { status: 400 });
-    }
-
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const tagIds: string[] = Array.isArray(body.tagIds) ? body.tagIds : [];
 
     const newProject = await prisma.portfolioProject.create({
       data: {
         centerId: targetCenterId,
         title,
-        slug: `${slug}-${Date.now().toString().slice(-4)}`,
-        summary,
-        caseStudyContent,
-        coverImageUrl,
-        videoEmbedUrl,
-        isHighlighted: isHighlighted ?? false,
-        isPublished: isPublished ?? true,
-        expertiseTags: tagIds?.length
-          ? {
-              create: tagIds.map((tagId: string) => ({ tagId })),
-            }
+        slug,
+        summary: body.summary ?? null,
+        caseStudyContent: body.caseStudyContent ?? null,
+        coverImageUrl: body.coverImageUrl ?? null,
+        videoEmbedUrl: body.videoEmbedUrl ?? null,
+        isHighlighted: body.isHighlighted ?? false,
+        isPublished: body.isPublished ?? true,
+        expertiseTags: tagIds.length
+          ? { create: tagIds.map((tagId) => ({ tagId })) }
           : undefined,
       },
     });
 
-    // Cache Invalidation
     await invalidateCachePattern("public:portfolio*");
+    await invalidateCachePattern("public:centers*");
 
-    // Activity Logging
     await logActivity({
-      actorId,
+      actorId: user.id,
       action: "CREATE",
       entityType: "PortfolioProject",
       entityId: newProject.id,
@@ -87,8 +89,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(newProject, { status: 201 });
-  } catch (error: any) {
-    console.error("[Admin Portfolio POST Error]:", error);
-    return NextResponse.json({ error: "Failed to create portfolio project." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Portfolio POST", error);
   }
 }

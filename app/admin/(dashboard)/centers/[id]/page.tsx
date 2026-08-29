@@ -6,9 +6,15 @@ import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Save, Plus, Trash2, Image as ImageIcon, Video, FileText, CheckCircle2 } from "lucide-react";
+import { FileUploadField } from "@/components/ui/file-upload-field";
+import { useToast } from "@/components/ui/toast";
+import { errorMessage, fetchJson } from "@/lib/fetch-json";
+import { ArrowLeft, Save, Plus, Trash2, Users, GripVertical } from "lucide-react";
+
+type TeamRow = { name: string; role: string; email: string; photoUrl: string };
 
 export default function AdminCenterEditPage() {
+  const toast = useToast();
   const router = useRouter();
   const params = useParams();
   const isNew = params.id === "new";
@@ -25,6 +31,10 @@ export default function AdminCenterEditPage() {
   // Taxonomy Tags
   const [allTags, setAllTags] = useState<any[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  // Tim pakar. Sebelumnya hanya bisa diisi lewat seed — tidak ada UI-nya sama
+  // sekali padahal blok "Tim Pakar" tampil di halaman center publik.
+  const [team, setTeam] = useState<TeamRow[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,11 +65,31 @@ export default function AdminCenterEditPage() {
             if (current.expertiseTags) {
               setSelectedTagIds(current.expertiseTags.map((et: any) => et.tagId));
             }
+            setTeam(
+              (current.team ?? []).map((t: any) => ({
+                name: t.name ?? "",
+                role: t.role ?? "",
+                email: t.email ?? "",
+                photoUrl: t.photoUrl ?? "",
+              }))
+            );
           }
         })
         .finally(() => setLoading(false));
     }
   }, [isNew, params.id]);
+
+  const updateMember = (index: number, field: keyof TeamRow, value: string) =>
+    setTeam((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
+
+  const moveMember = (index: number, delta: number) =>
+    setTeam((prev) => {
+      const target = index + delta;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
 
   const handleToggleTag = (tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -83,23 +113,21 @@ export default function AdminCenterEditPage() {
         profilePdfUrl,
         isPublished,
         tagIds: selectedTagIds,
+        team,
       };
 
       const url = isNew ? "/api/admin/centers" : `/api/admin/centers/${params.id}`;
       const method = isNew ? "POST" : "PUT";
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      await fetchJson(url, { method, body: JSON.stringify(payload) });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data center.");
-
+      toast.success(isNew ? "Center dibuat" : "Perubahan tersimpan", name);
       router.push("/admin/centers");
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan.");
+    } catch (err) {
+      // Pesan asli dari server ditampilkan (mis. "Jabatan X wajib diisi"),
+      // bukan "Gagal menyimpan data center." yang menutupi penyebabnya.
+      setError(errorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -169,22 +197,142 @@ export default function AdminCenterEditPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">URL Logo Badge</label>
-              <input
-                type="url"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
-              />
-            </div>
+            <FileUploadField
+              label="Logo Badge"
+              kind="image"
+              value={logoUrl}
+              onChange={setLogoUrl}
+              hint="Tampil di kartu direktori center dan halaman detail."
+            />
           </Card>
 
           {/* Tiptap About Editor */}
           <Card className="p-6 space-y-4">
             <h2 className="font-bold text-base text-[#003366]">Deskripsi Profil & Metodologi (Rich Text)</h2>
             <TiptapEditor content={aboutContent} onChange={setAboutContent} />
+          </Card>
+
+          {/* Tim Pakar */}
+          <Card className="space-y-4 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-[#0b64b4]" />
+                <h2 className="text-base font-bold text-[#003366]">Tim Pakar</h2>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setTeam((prev) => [...prev, { name: "", role: "", email: "", photoUrl: "" }])
+                }
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Tambah Anggota
+              </Button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Tampil di kolom Tim Pakar halaman center. Urutan di sini menentukan
+              urutan tampil. Email opsional &mdash; bila diisi, alamatnya tampil di
+              halaman publik saat nama diklik, jadi isi hanya alamat yang memang
+              boleh dipublikasikan.
+            </p>
+
+            {team.length === 0 ? (
+              <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center text-xs text-slate-500">
+                Belum ada anggota tim. Blok Tim Pakar tidak akan tampil di halaman publik.
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {team.map((member, index) => (
+                  <li key={index} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <GripVertical className="h-3.5 w-3.5" />
+                        Anggota {index + 1}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => moveMember(index, -1)}
+                          aria-label="Naikkan urutan"
+                          className="rounded px-2 py-0.5 text-xs font-bold text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                        >
+                          &uarr;
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === team.length - 1}
+                          onClick={() => moveMember(index, 1)}
+                          aria-label="Turunkan urutan"
+                          className="rounded px-2 py-0.5 text-xs font-bold text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                        >
+                          &darr;
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTeam((prev) => prev.filter((_, i) => i !== index))}
+                          aria-label={`Hapus anggota ${index + 1}`}
+                          className="ml-1 rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor={`tm-name-${index}`} className="field-label">
+                          Nama <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          id={`tm-name-${index}`}
+                          value={member.name}
+                          onChange={(e) => updateMember(index, "name", e.target.value)}
+                          placeholder="Prof. Sari Handayani"
+                          className="field"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`tm-role-${index}`} className="field-label">
+                          Jabatan <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          id={`tm-role-${index}`}
+                          value={member.role}
+                          onChange={(e) => updateMember(index, "role", e.target.value)}
+                          placeholder="Lead Strategist"
+                          className="field"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label htmlFor={`tm-email-${index}`} className="field-label">
+                          Email (opsional)
+                        </label>
+                        <input
+                          id={`tm-email-${index}`}
+                          type="email"
+                          value={member.email}
+                          onChange={(e) => updateMember(index, "email", e.target.value)}
+                          placeholder="nama@uccenters.id"
+                          className="field"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <FileUploadField
+                          label="Foto (opsional)"
+                          kind="image"
+                          value={member.photoUrl}
+                          onChange={(url) => updateMember(index, "photoUrl", url)}
+                        />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         </div>
 
@@ -244,33 +392,41 @@ export default function AdminCenterEditPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                URL {heroMediaType === "IMAGE" ? "Gambar" : "Embed Video"}
-              </label>
-              <input
-                type="url"
+            {heroMediaType === "IMAGE" ? (
+              <FileUploadField
+                label="Gambar Hero"
+                kind="image"
                 value={heroMediaUrl}
-                onChange={(e) => setHeroMediaUrl(e.target.value)}
-                placeholder={heroMediaType === "IMAGE" ? "https://images.unsplash.com/..." : "https://www.youtube.com/embed/..."}
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
+                onChange={setHeroMediaUrl}
+                hint="Gambar besar di bagian atas halaman center."
               />
-            </div>
+            ) : (
+              // Video tetap berupa URL: yang disimpan adalah alamat embed
+              // YouTube/Vimeo, bukan berkas video yang di-host sendiri.
+              <div>
+                <label htmlFor="hero-video" className="field-label">URL Embed Video</label>
+                <input
+                  id="hero-video"
+                  type="url"
+                  value={heroMediaUrl}
+                  onChange={(e) => setHeroMediaUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/embed/..."
+                  className="field"
+                />
+              </div>
+            )}
           </Card>
 
           {/* PDF Company Profile */}
           <Card className="p-6 space-y-4">
             <h2 className="font-bold text-base text-[#003366]">Company Profile (PDF)</h2>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">URL Dokumen PDF</label>
-              <input
-                type="url"
-                value={profilePdfUrl}
-                onChange={(e) => setProfilePdfUrl(e.target.value)}
-                placeholder="https://example.com/company-profile.pdf"
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
-              />
-            </div>
+            <FileUploadField
+              label="Dokumen PDF"
+              kind="document"
+              value={profilePdfUrl}
+              onChange={setProfilePdfUrl}
+              hint="Muncul sebagai tombol 'Unduh Profil' di halaman center."
+            />
           </Card>
         </div>
       </div>

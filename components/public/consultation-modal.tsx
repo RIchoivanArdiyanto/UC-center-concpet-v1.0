@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { SuccessDialog } from "@/components/ui/success-dialog";
+import { Send, AlertCircle } from "lucide-react";
 
 interface ConsultationModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ interface ConsultationModalProps {
   source?: "HOMEPAGE" | "CENTER_DETAIL" | "GENERAL_CONSULTATION";
 }
 
+const EMPTY_FORM = { name: "", email: "", phone: "", subject: "", message: "" };
+
 export function ConsultationModal({
   isOpen,
   onClose,
@@ -20,15 +23,14 @@ export function ConsultationModal({
   centerName,
   source = "GENERAL_CONSULTATION",
 }: ConsultationModalProps) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    message: "",
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+
+  const setField = (field: keyof typeof EMPTY_FORM) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => setFormData((prev) => ({ ...prev, [field]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,116 +43,133 @@ export function ConsultationModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          // Bila diajukan dari halaman center, nama center dipakai sebagai
+          // subjek default agar admin langsung tahu konteks permohonannya.
+          subject: formData.subject || (centerName ? `Kerja sama — ${centerName}` : ""),
           centerId,
           source,
         }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error("Gagal mengirim permohonan konsultasi.");
+        throw new Error(data?.error || "Gagal mengirim permohonan konsultasi.");
       }
 
+      // Form modal ditutup dan diganti dialog sukses, supaya pengunjung dapat
+      // konfirmasi yang jelas, bukan sekadar isian yang tiba-tiba kosong.
+      setFormData(EMPTY_FORM);
       setSubmitted(true);
-      setFormData({ name: "", email: "", phone: "", message: "" });
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan. Silakan coba lagi.");
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReset = () => {
-    setSubmitted(false);
+  const handleCancel = () => {
     setError("");
     onClose();
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleReset}
-      title={centerName ? `Ajukan Kerja Sama — ${centerName}` : "Konsultasi & Layanan UC Centers"}
-    >
-      {submitted ? (
-        <div className="text-center py-6 space-y-4">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto animate-bounce">
-            <CheckCircle2 className="w-10 h-10" />
-          </div>
-          <h4 className="text-xl font-bold text-[#111c2d]">Permohonan Terkirim!</h4>
-          <p className="text-slate-600 text-sm max-w-md mx-auto">
-            Tim UC Centers akan menghubungi Anda melalui email atau telepon dalam waktu 1x24 jam kerja.
-          </p>
-          <Button onClick={handleReset} className="mt-4">
-            Tutup
-          </Button>
-        </div>
-      ) : (
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleCancel}
+        title={centerName ? `Ajukan Kerja Sama — ${centerName}` : "Konsultasi & Layanan UC Centers"}
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label htmlFor="c-name" className="field-label">
               Nama Lengkap <span className="text-rose-500">*</span>
             </label>
             <input
+              id="c-name"
               type="text"
               required
+              autoComplete="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={setField("name")}
               placeholder="Contoh: Dr. Ir. Budi Santoso"
-              className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
+              className="field"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="c-email" className="field-label">
                 Email Resmi <span className="text-rose-500">*</span>
               </label>
               <input
+                id="c-email"
                 type="email"
                 required
+                autoComplete="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={setField("email")}
                 placeholder="nama@perusahaan.com"
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
+                className="field"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Nomor Telepon / WhatsApp
+              <label htmlFor="c-phone" className="field-label">
+                Telepon / WhatsApp
               </label>
               <input
+                id="c-phone"
                 type="tel"
+                autoComplete="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={setField("phone")}
                 placeholder="081234567890"
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
+                className="field"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Pesan / Kebutuhan Konsultasi <span className="text-rose-500">*</span>
+            <label htmlFor="c-subject" className="field-label">
+              Subjek
             </label>
-            <textarea
-              required
-              rows={4}
-              value={formData.message}
-              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              placeholder="Jelaskan secara singkat topik riset, pelatihan, atau konsultasi yang Anda butuhkan..."
-              className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
+            <input
+              id="c-subject"
+              type="text"
+              value={formData.subject}
+              onChange={setField("subject")}
+              placeholder={centerName ? `Kerja sama — ${centerName}` : "Topik permohonan Anda"}
+              className="field"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div>
+            <label htmlFor="c-message" className="field-label">
+              Pesan / Kebutuhan Konsultasi <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              id="c-message"
+              required
+              rows={4}
+              value={formData.message}
+              onChange={setField("message")}
+              placeholder="Jelaskan secara singkat topik riset, pelatihan, atau konsultasi yang Anda butuhkan..."
+              className="field resize-y"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+            <Button type="button" variant="outline" onClick={handleCancel}>
               Batal
             </Button>
             <Button type="submit" disabled={loading}>
@@ -158,14 +177,22 @@ export function ConsultationModal({
                 "Mengirim..."
               ) : (
                 <>
-                  <Send className="w-4 h-4 mr-2" />
+                  <Send className="mr-2 h-4 w-4" />
                   Kirim Permohonan
                 </>
               )}
             </Button>
           </div>
         </form>
-      )}
-    </Modal>
+      </Modal>
+
+      <SuccessDialog
+        isOpen={submitted}
+        onClose={() => setSubmitted(false)}
+        title="Permohonan terkirim"
+        description="Tim UC Centers akan menghubungi Anda melalui email atau telepon dalam 1×24 jam kerja."
+        actionLabel="Selesai"
+      />
+    </>
   );
 }

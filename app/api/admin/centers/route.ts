@@ -1,77 +1,87 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { invalidateCachePattern } from "@/lib/redis";
+import { invalidateCachePattern } from "@/lib/cache";
 import { logActivity } from "@/lib/activity-log";
+import { uniqueSlug } from "@/lib/slug";
+import {
+  handleApiError,
+  readJson,
+  requireAdmin,
+  requireField,
+  scopeToCenter,
+} from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
+import { normalizeTeam } from "@/lib/center-team";
 
-export async function GET(req: Request) {
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
+
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const role = (session.user as any).role;
-    const centerId = (session.user as any).centerId;
-
-    // Hard Rule: Filter by centerId at query level for CENTER_ADMIN
-    const where = role === "CENTER_ADMIN" && centerId ? { id: centerId } : {};
+    const user = await requireAdmin(PERMISSIONS.CENTERS_VIEW);
 
     const centers = await prisma.center.findMany({
-      where,
+      // Role ber-scope OWN_CENTER dibatasi di level query, bukan sekadar di UI.
+      where: scopeToCenter(user, "id"),
       include: {
         expertiseTags: { include: { tag: true } },
+        // Tim ikut dikirim supaya form edit center bisa memuatnya tanpa
+        // request tambahan.
+        team: { orderBy: { sortOrder: "asc" } },
         _count: { select: { projects: true, team: true, leads: true } },
       },
       orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(centers);
-  } catch (error: any) {
-    console.error("[Admin Centers GET Error]:", error);
-    return NextResponse.json({ error: "Failed to fetch centers." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Centers GET", error);
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAdmin(PERMISSIONS.CENTERS_MANAGE);
+    const body = await readJson<Record<string, any>>(req);
 
-    const actorId = (session.user as any).id;
-    const body = await req.json();
-    const { name, tagline, logoUrl, heroMediaType, heroMediaUrl, aboutContent, profilePdfUrl, isPublished, tagIds } = body;
+    // Versi lama langsung memanggil name.toLowerCase() — body tanpa `name`
+    // melempar TypeError dan dibalas 500, bukan 400.
+    const name = requireField(body.name, "Nama center") as string;
 
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const slug = await uniqueSlug(
+      name,
+      async (candidate) => (await prisma.center.count({ where: { slug: candidate } })) > 0,
+      "center"
+    );
+
+    const tagIds: string[] = Array.isArray(body.tagIds) ? body.tagIds : [];
+    const team = normalizeTeam(body.team);
 
     const newCenter = await prisma.center.create({
       data: {
         name,
-        slug: `${slug}-${Date.now().toString().slice(-4)}`,
-        tagline,
-        logoUrl,
-        heroMediaType: heroMediaType || "IMAGE",
-        heroMediaUrl,
-        aboutContent,
-        profilePdfUrl,
-        isPublished: isPublished ?? true,
-        expertiseTags: tagIds?.length
-          ? {
-              create: tagIds.map((tagId: string) => ({ tagId })),
-            }
+        slug,
+        tagline: body.tagline ?? null,
+        logoUrl: body.logoUrl ?? null,
+        heroMediaType: body.heroMediaType || "IMAGE",
+        heroMediaUrl: body.heroMediaUrl ?? null,
+        aboutContent: body.aboutContent ?? null,
+        profilePdfUrl: body.profilePdfUrl ?? null,
+        isPublished: body.isPublished ?? true,
+        expertiseTags: tagIds.length
+          ? { create: tagIds.map((tagId) => ({ tagId })) }
           : undefined,
+        team: team.length ? { create: team } : undefined,
       },
     });
 
-    // Explicit Redis Cache Invalidation
     await invalidateCachePattern("public:centers*");
 
-    // Explicit Activity Log Insertion
     await logActivity({
-      actorId,
+      actorId: user.id,
       action: "CREATE",
       entityType: "Center",
       entityId: newCenter.id,
@@ -79,8 +89,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(newCenter, { status: 201 });
-  } catch (error: any) {
-    console.error("[Admin Centers POST Error]:", error);
-    return NextResponse.json({ error: "Failed to create center." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Centers POST", error);
   }
 }

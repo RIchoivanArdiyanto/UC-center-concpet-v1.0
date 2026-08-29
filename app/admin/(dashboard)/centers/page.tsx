@@ -1,63 +1,74 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MobileTableCard } from "@/components/ui/mobile-table-card";
-import { Plus, Edit, Trash2, Globe, Building2, CheckCircle2, XCircle } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { errorMessage, fetchJson } from "@/lib/fetch-json";
+import { Plus, Edit, Trash2, CheckCircle2, XCircle } from "lucide-react";
 
 export default function AdminCentersPage() {
+  const toast = useToast();
   const [centers, setCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchCenters = async () => {
+  const fetchCenters = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/centers");
-      if (res.ok) {
-        const data = await res.json();
-        setCenters(data);
-      }
+      setCenters(await fetchJson<any[]>("/api/admin/centers"));
     } catch (err) {
-      console.error("Failed to load centers:", err);
+      // Sebelumnya kegagalan hanya masuk console.error, jadi halaman tampak
+      // "kosong" padahal sebenarnya request-nya gagal.
+      toast.error("Gagal memuat center", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchCenters();
-  }, []);
+  }, [fetchCenters]);
 
   const handleToggleStatus = async (center: any) => {
+    const next = !center.isPublished;
+    // Perbarui tampilan lebih dulu supaya toggle terasa responsif; dikembalikan
+    // lagi kalau server menolak.
+    setCenters((prev) =>
+      prev.map((c) => (c.id === center.id ? { ...c, isPublished: next } : c))
+    );
+
     try {
-      const res = await fetch(`/api/admin/centers/${center.id}`, {
+      await fetchJson(`/api/admin/centers/${center.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...center,
-          isPublished: !center.isPublished,
-        }),
+        body: JSON.stringify({ isPublished: next }),
       });
-      if (res.ok) {
-        fetchCenters();
-      }
+      toast.success(next ? "Center dipublikasikan" : "Center disembunyikan", center.name);
     } catch (err) {
-      console.error("Failed to toggle center status:", err);
+      setCenters((prev) =>
+        prev.map((c) => (c.id === center.id ? { ...c, isPublished: !next } : c))
+      );
+      toast.error("Gagal mengubah status", errorMessage(err));
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus Center ini?")) return;
+  const confirmDelete = async () => {
+    if (!pending) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/centers/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        fetchCenters();
-      }
+      await fetchJson(`/api/admin/centers/${pending.id}`, { method: "DELETE" });
+      toast.success("Center dihapus", pending.name);
+      setPending(null);
+      fetchCenters();
     } catch (err) {
-      console.error("Failed to delete center:", err);
+      toast.error("Gagal menghapus", errorMessage(err));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -156,7 +167,7 @@ export default function AdminCentersPage() {
                             </button>
                           </Link>
                           <button
-                            onClick={() => handleDelete(center.id)}
+                            onClick={() => setPending({ id: center.id, name: center.name })}
                             className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -197,7 +208,7 @@ export default function AdminCentersPage() {
                           <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                         </Button>
                       </Link>
-                      <Button variant="danger" size="sm" onClick={() => handleDelete(center.id)}>
+                      <Button variant="danger" size="sm" onClick={() => setPending({ id: center.id, name: center.name })}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </>
@@ -208,6 +219,20 @@ export default function AdminCentersPage() {
           </>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={pending !== null}
+        loading={deleting}
+        title="Hapus center ini?"
+        description={
+          <>
+            <strong className="text-[#111c2d]">{pending?.name}</strong> beserta seluruh
+            proyek, tim, dan layanannya akan ikut terhapus permanen.
+          </>
+        }
+        onCancel={() => setPending(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

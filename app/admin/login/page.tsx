@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
-import { Lock, Mail, AlertCircle, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
+import { Lock, User, AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
 
-export default function AdminLoginPage() {
-  const [email, setEmail] = useState("");
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard";
+
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -19,112 +23,161 @@ export default function AdminLoginPage() {
 
     try {
       const res = await signIn("credentials", {
-        email: email.trim(),
+        identifier: identifier.trim(),
         password,
         redirect: false,
       });
 
       if (res?.error || !res?.ok) {
-        throw new Error("Email atau password tidak cocok.");
+        // Pesan dari server (mis. kena rate limit) ditampilkan apa adanya;
+        // selain itu dipakai pesan netral yang tidak membocorkan apakah
+        // username-nya ada atau tidak.
+        throw new Error(
+          res?.error && res.error !== "CredentialsSignin"
+            ? res.error
+            : "Username/email atau password tidak cocok."
+        );
       }
 
-      // Hard redirect to ensure session token cookie is committed
-      window.location.href = "/admin/dashboard";
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan saat autentikasi.");
+      // Redirect keras agar cookie sesi benar-benar tertulis sebelum halaman
+      // berikutnya membacanya. Tujuan dibatasi ke path internal supaya
+      // parameter callbackUrl tidak bisa dipakai mengarahkan ke situs lain.
+      const safeTarget = callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+        ? callbackUrl
+        : "/admin/dashboard";
+      window.location.href = safeTarget;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan saat autentikasi.");
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-tr from-[#003366] via-[#233e95] to-[#0b64b4] p-4">
-      {/* Centered Login Card */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-white/20 p-8 space-y-6">
-        {/* Header with Official UC Logo */}
-        <div className="text-center space-y-2">
-          <div className="w-20 h-20 rounded-full overflow-hidden bg-white border-2 border-amber-400 p-1 mx-auto shadow-lg flex items-center justify-center">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-tr from-[#00284f] via-[#233e95] to-[#0b64b4] p-4">
+      {/* Ornamen latar lembut */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 -right-16 h-96 w-96 rounded-full bg-[#0b64b4]/30 blur-3xl"
+      />
+
+      <div className="relative w-full max-w-md space-y-6 rounded-2xl border border-white/20 bg-white p-8 shadow-2xl">
+        <div className="space-y-2 text-center">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-amber-400 bg-white p-1 shadow-lg">
             <Image
               src="/logo-uc.png"
-              alt="Universitas Ciputra Logo"
+              alt="Logo Universitas Ciputra"
               width={72}
               height={72}
               priority
               style={{ width: "72px", height: "72px", objectFit: "contain" }}
             />
           </div>
-          <h1 className="text-2xl font-extrabold text-[#003366] pt-2">UC Centers Admin</h1>
-          <p className="text-xs text-slate-500">Masuk untuk mengelola data center, mitra, proyek & artikel</p>
+          <h1 className="pt-2 text-2xl font-extrabold text-[#003366]">UC Centers Admin</h1>
+          <p className="text-xs text-slate-500">
+            Masuk untuk mengelola data center, mitra, proyek &amp; artikel
+          </p>
         </div>
 
-        {/* Error Alert */}
         {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Email Admin</label>
+            <label htmlFor="identifier" className="field-label">
+              Username atau Email
+            </label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+              <User className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <input
-                type="email"
+                id="identifier"
+                name="identifier"
+                type="text"
+                autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@uccenters.id"
-                className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="masukkan username atau email"
+                className="field pl-10"
               />
             </div>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700">Password</label>
-              <a href="#" className="text-[11px] font-semibold text-[#0b64b4] hover:underline">
-                Lupa Password?
-              </a>
-            </div>
+            <label htmlFor="password" className="field-label">
+              Password
+            </label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+              <Lock className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <input
-                type="password"
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0b64b4]"
+                className="field pl-10 pr-11"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                className="absolute right-2 top-1.5 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full py-3">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#233e95] to-[#0b64b4] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[#0b64b4]/25 transition hover:opacity-95 disabled:opacity-60"
+          >
             {loading ? (
-              "Memproses Login..."
+              "Memproses login..."
             ) : (
               <>
                 <span>Masuk Sistem</span>
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
-          </Button>
+          </button>
         </form>
 
-        {/* Password Credentials Box */}
-        <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-slate-700 space-y-1">
-          <div className="font-bold text-[#003366]">Kredensial Login Default:</div>
-          <div>Email: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-blue-200 text-[#0b64b4] font-bold">admin@uccenters.id</code></div>
-          <div>Password: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-blue-200 text-[#0b64b4] font-bold">Password123!</code></div>
-        </div>
+        {/* Kotak "Kredensial Login Default" sebelumnya menampilkan email dan
+            password admin di halaman yang bisa diakses siapa pun. Dihapus —
+            kredensial diberikan lewat jalur pribadi, bukan dipajang di UI. */}
+        <p className="text-center text-[11px] leading-relaxed text-slate-400">
+          Akses panel hanya untuk pengelola terdaftar. Hubungi administrator sistem
+          bila Anda belum memiliki akun.
+        </p>
       </div>
 
-      {/* Version Watermark */}
-      <div className="mt-8 text-white/70 text-xs font-medium">
+      <div className="mt-8 text-xs font-medium text-white/70">
         UC Centers Administration Platform — <strong className="text-white">v2.1.0</strong>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  // useSearchParams butuh Suspense boundary di App Router.
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#00284f]" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

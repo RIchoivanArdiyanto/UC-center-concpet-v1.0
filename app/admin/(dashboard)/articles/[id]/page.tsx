@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { FileUploadField } from "@/components/ui/file-upload-field";
 import { Button } from "@/components/ui/button";
 import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import { ArrowLeft, Save, Plus, Trash2, FileText, ChevronDown, ChevronUp } from "lucide-react";
@@ -222,16 +223,13 @@ export default function AdminArticleEditPage() {
 
           <Card className="p-6 space-y-4">
             <h2 className="font-bold text-base text-[#003366]">Cover Image</h2>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">URL Gambar Header</label>
-              <input
-                type="url"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg"
-              />
-            </div>
+            <FileUploadField
+              label="Gambar Header"
+              kind="image"
+              value={coverImageUrl}
+              onChange={setCoverImageUrl}
+              hint="Tampil di daftar artikel dan bagian atas halaman artikel."
+            />
           </Card>
 
           {/* Downloadable Attachments Manager */}

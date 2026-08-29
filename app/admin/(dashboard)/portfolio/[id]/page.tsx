@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { FileUploadField } from "@/components/ui/file-upload-field";
 import { Button } from "@/components/ui/button";
 import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import { ArrowLeft, Save } from "lucide-react";
@@ -222,24 +223,23 @@ export default function AdminPortfolioEditPage() {
 
           <Card className="p-6 space-y-4">
             <h2 className="font-bold text-base text-[#003366]">Media Cover & Embed</h2>
+            <FileUploadField
+              label="Gambar Cover"
+              kind="image"
+              value={coverImageUrl}
+              onChange={setCoverImageUrl}
+            />
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">URL Gambar Cover</label>
+              {/* Video tetap URL embed — yang disimpan alamat YouTube/Vimeo,
+                  bukan berkas video yang di-host sendiri. */}
+              <label htmlFor="p-video" className="field-label">URL Embed Video (Opsional)</label>
               <input
-                type="url"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">URL Embed Video (Opsional)</label>
-              <input
+                id="p-video"
                 type="url"
                 value={videoEmbedUrl}
                 onChange={(e) => setVideoEmbedUrl(e.target.value)}
                 placeholder="https://www.youtube.com/embed/..."
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg"
+                className="field"
               />
             </div>
           </Card>

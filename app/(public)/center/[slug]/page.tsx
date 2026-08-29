@@ -3,11 +3,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCachedData, setCachedData } from "@/lib/redis";
+import { getCachedData, setCachedData } from "@/lib/cache";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { CenterDetailActions } from "./actions";
+import { TeamList } from "./team-list";
 import { ChevronRight, CheckCircle2, Users, Building2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -160,25 +161,8 @@ export default async function CenterDetailPage({ params }: { params: { slug: str
                   <Users className="w-5 h-5 text-[#0b64b4]" />
                   <h3 className="font-bold text-base text-[#111c2d]">Tim Pakar</h3>
                 </div>
-                <div className="space-y-4">
-                  {center.team.map((member: any) => (
-                    <div key={member.id} className="flex items-center gap-3">
-                      <div className="relative w-11 h-11 rounded-full overflow-hidden bg-slate-100 border flex-shrink-0">
-                        {member.photoUrl ? (
-                          <Image src={member.photoUrl} alt={member.name} fill sizes="44px" className="object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-xs">
-                            {member.name?.charAt(0) || "T"}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-[#111c2d]">{member.name}</div>
-                        <div className="text-xs text-slate-500">{member.role}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {/* Klik nama anggota untuk membuka emailnya beserta tombol salin. */}
+                <TeamList members={center.team} />
               </Card>
             )}
 

@@ -1,59 +1,73 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MobileTableCard } from "@/components/ui/mobile-table-card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { errorMessage, fetchJson } from "@/lib/fetch-json";
 import { Plus, Edit, Trash2, Star, CheckCircle2, XCircle } from "lucide-react";
 
 export default function AdminPortfolioPage() {
+  const toast = useToast();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/portfolio");
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data);
-      }
+      setProjects(await fetchJson<any[]>("/api/admin/portfolio"));
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal memuat portfolio", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [fetchProjects]);
 
   const handleToggleHighlight = async (project: any) => {
+    const next = !project.isHighlighted;
+    setProjects((prev) =>
+      prev.map((p) => (p.id === project.id ? { ...p, isHighlighted: next } : p))
+    );
+
     try {
-      const res = await fetch(`/api/admin/portfolio/${project.id}`, {
+      // Hanya field yang berubah yang dikirim. Versi lama mengirim balik seluruh
+      // objek hasil GET — termasuk relasi `center` dan `expertiseTags` yang bukan
+      // kolom tabel — sehingga rawan menimpa data dengan bentuk yang salah.
+      await fetchJson(`/api/admin/portfolio/${project.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...project,
-          isHighlighted: !project.isHighlighted,
-        }),
+        body: JSON.stringify({ isHighlighted: next }),
       });
-      if (res.ok) fetchProjects();
+      toast.success(next ? "Ditandai sebagai unggulan" : "Dihapus dari unggulan", project.title);
     } catch (err) {
-      console.error(err);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === project.id ? { ...p, isHighlighted: !next } : p))
+      );
+      toast.error("Gagal mengubah status", errorMessage(err));
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus proyek ini?")) return;
+  const confirmDelete = async () => {
+    if (!pending) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/portfolio/${id}`, { method: "DELETE" });
-      if (res.ok) fetchProjects();
+      await fetchJson(`/api/admin/portfolio/${pending.id}`, { method: "DELETE" });
+      toast.success("Proyek dihapus", pending.title);
+      setPending(null);
+      fetchProjects();
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal menghapus", errorMessage(err));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -144,7 +158,7 @@ export default function AdminPortfolioPage() {
                             </button>
                           </Link>
                           <button
-                            onClick={() => handleDelete(p.id)}
+                            onClick={() => setPending({ id: p.id, title: p.title })}
                             className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -182,7 +196,7 @@ export default function AdminPortfolioPage() {
                           <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                         </Button>
                       </Link>
-                      <Button variant="danger" size="sm" onClick={() => handleDelete(p.id)}>
+                      <Button variant="danger" size="sm" onClick={() => setPending({ id: p.id, title: p.title })}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </>
@@ -193,6 +207,20 @@ export default function AdminPortfolioPage() {
           </>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={pending !== null}
+        loading={deleting}
+        title="Hapus proyek ini?"
+        description={
+          <>
+            <strong className="text-[#111c2d]">{pending?.title}</strong> akan dihapus permanen
+            dari portfolio publik.
+          </>
+        }
+        onCancel={() => setPending(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

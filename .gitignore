@@ -35,6 +35,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# berkas unggahan pengguna (disimpan di volume Docker)
+/uploads
+
 # docker data
 postgres_data
 redis_data

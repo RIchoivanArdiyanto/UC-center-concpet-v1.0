@@ -1,52 +1,51 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MobileTableCard } from "@/components/ui/mobile-table-card";
+import { useToast } from "@/components/ui/toast";
+import { errorMessage, fetchJson } from "@/lib/fetch-json";
 import { Plus, Tags, Trash2 } from "lucide-react";
 
 export default function AdminExpertisePage() {
+  const toast = useToast();
   const [tags, setTags] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [colorHex, setColorHex] = useState("#0b64b4");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchTags = async () => {
+  const fetchTags = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/expertise");
-      if (res.ok) {
-        const data = await res.json();
-        setTags(data);
-      }
+      setTags(await fetchJson<any[]>("/api/admin/expertise"));
     } catch (err) {
-      console.error(err);
+      toast.error("Gagal memuat tag", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchTags();
-  }, []);
+  }, [fetchTags]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch("/api/admin/expertise", {
+      await fetchJson("/api/admin/expertise", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, colorHex }),
       });
-      if (res.ok) {
-        setName("");
-        fetchTags();
-      }
+      toast.success("Tag ditambahkan", name);
+      setName("");
+      fetchTags();
     } catch (err) {
-      console.error(err);
+      // Nama tag duplikat kini dibalas 409 oleh server dan pesannya tampil di
+      // sini. Sebelumnya `if (res.ok)` tanpa else membuat tombol seperti macet.
+      toast.error("Gagal menambah tag", errorMessage(err));
     } finally {
       setSubmitting(false);
     }

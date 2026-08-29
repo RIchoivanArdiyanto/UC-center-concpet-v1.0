@@ -1,27 +1,34 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateCachePattern } from "@/lib/cache";
 import { logActivity } from "@/lib/activity-log";
+import { handleApiError, requireAdmin } from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
+
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await requireAdmin(PERMISSIONS.CLIENTS_MANAGE);
 
-    const actorId = (session.user as any).id;
     const deleted = await prisma.clientLogo.delete({ where: { id: params.id } });
 
+    await invalidateCachePattern("public:centers*");
+
     await logActivity({
-      actorId,
+      actorId: user.id,
       action: "DELETE",
-      entityType: "Center",
+      entityType: "ClientLogo",
       entityId: params.id,
-      metadata: { name: deleted.name, type: "ClientLogo" },
+      metadata: { name: deleted.name },
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to delete client logo." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Client DELETE", error);
   }
 }

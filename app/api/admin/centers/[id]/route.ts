@@ -1,61 +1,76 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { invalidateCachePattern } from "@/lib/redis";
+import { invalidateCachePattern } from "@/lib/cache";
 import { logActivity } from "@/lib/activity-log";
+import {
+  assertCenterAccess,
+  handleApiError,
+  readJson,
+  requireAdmin,
+} from "@/lib/api";
+import { PERMISSIONS } from "@/lib/permissions";
+import { normalizeTeam } from "@/lib/center-team";
+
+// Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
+// dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
+// dan memenuhi log dengan "Dynamic server usage".
+export const dynamic = "force-dynamic";
+
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAdmin(PERMISSIONS.CENTERS_MANAGE);
+    assertCenterAccess(user, params.id);
 
-    const actorId = (session.user as any).id;
-    const role = (session.user as any).role;
-    const userCenterId = (session.user as any).centerId;
+    const body = await readJson<Record<string, any>>(req);
+    const tagIds: string[] | undefined = Array.isArray(body.tagIds) ? body.tagIds : undefined;
+    // `undefined` berarti form tidak mengirim tim sama sekali (mis. toggle
+    // publish dari daftar) — tim yang ada tidak boleh ikut terhapus.
+    const team = Array.isArray(body.team) ? normalizeTeam(body.team) : undefined;
 
-    // Hard Rule: Enforce CENTER_ADMIN scoping
-    if (role === "CENTER_ADMIN" && userCenterId !== params.id) {
-      return NextResponse.json({ error: "Forbidden: Access limited to assigned center." }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { name, tagline, logoUrl, heroMediaType, heroMediaUrl, aboutContent, profilePdfUrl, isPublished, tagIds } = body;
-
-    // Update center and tags transactionally
     const updatedCenter = await prisma.$transaction(async (tx) => {
       if (tagIds !== undefined) {
         await tx.centerExpertise.deleteMany({ where: { centerId: params.id } });
         if (tagIds.length > 0) {
           await tx.centerExpertise.createMany({
-            data: tagIds.map((tagId: string) => ({ centerId: params.id, tagId })),
+            data: tagIds.map((tagId) => ({ centerId: params.id, tagId })),
+            skipDuplicates: true,
           });
         }
       }
 
+      if (team !== undefined) {
+        // TeamMember tidak punya kolom unique alami, jadi ditulis ulang penuh.
+        await tx.teamMember.deleteMany({ where: { centerId: params.id } });
+        if (team.length > 0) {
+          await tx.teamMember.createMany({
+            data: team.map((t) => ({ ...t, centerId: params.id })),
+          });
+        }
+      }
+
+      // Field yang tidak dikirim tetap `undefined` sehingga diabaikan Prisma —
+      // ini yang membuat toggle "publish" dari daftar center (hanya mengirim
+      // isPublished) tidak menghapus field lain.
       return tx.center.update({
         where: { id: params.id },
         data: {
-          name,
-          tagline,
-          logoUrl,
-          heroMediaType,
-          heroMediaUrl,
-          aboutContent,
-          profilePdfUrl,
-          isPublished,
+          name: body.name,
+          tagline: body.tagline,
+          logoUrl: body.logoUrl,
+          heroMediaType: body.heroMediaType,
+          heroMediaUrl: body.heroMediaUrl,
+          aboutContent: body.aboutContent,
+          profilePdfUrl: body.profilePdfUrl,
+          isPublished: body.isPublished,
         },
       });
     });
 
-    // Explicit Cache Invalidation
     await invalidateCachePattern("public:centers*");
 
-    // Explicit Activity Logging
     await logActivity({
-      actorId,
+      actorId: user.id,
       action: "UPDATE",
       entityType: "Center",
       entityId: updatedCenter.id,
@@ -63,37 +78,23 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     });
 
     return NextResponse.json(updatedCenter);
-  } catch (error: any) {
-    console.error("[Admin Center PUT Error]:", error);
-    return NextResponse.json({ error: "Failed to update center." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Center PUT", error);
   }
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAdmin(PERMISSIONS.CENTERS_MANAGE);
+    assertCenterAccess(user, params.id);
 
-    const actorId = (session.user as any).id;
-    const role = (session.user as any).role;
-    const userCenterId = (session.user as any).centerId;
+    const deletedCenter = await prisma.center.delete({ where: { id: params.id } });
 
-    if (role === "CENTER_ADMIN" && userCenterId !== params.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const deletedCenter = await prisma.center.delete({
-      where: { id: params.id },
-    });
-
-    // Explicit Cache Invalidation
     await invalidateCachePattern("public:centers*");
+    await invalidateCachePattern("public:portfolio*");
 
-    // Explicit Activity Logging
     await logActivity({
-      actorId,
+      actorId: user.id,
       action: "DELETE",
       entityType: "Center",
       entityId: params.id,
@@ -101,8 +102,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("[Admin Center DELETE Error]:", error);
-    return NextResponse.json({ error: "Failed to delete center." }, { status: 500 });
+  } catch (error) {
+    return handleApiError("Admin Center DELETE", error);
   }
 }
