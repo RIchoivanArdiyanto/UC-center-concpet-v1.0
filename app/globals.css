@@ -7,14 +7,14 @@
     @apply bg-[#f9f9ff] text-[#111c2d] font-sans antialiased;
   }
 
-  /* Cincin fokus konsisten untuk navigasi keyboard di seluruh panel. */
+  /* Cincin fokus konsisten untuk navigasi keyboard di seluruh situs. */
   :focus-visible {
     @apply outline-none ring-2 ring-[#0b64b4] ring-offset-2 ring-offset-white;
   }
 }
 
 @layer components {
-  /* Gaya seragam untuk seluruh input form admin — sebelumnya kelas panjang yang
+  /* Gaya seragam untuk seluruh input form — sebelumnya kelas panjang yang
      sama disalin puluhan kali dan mulai menyimpang satu sama lain. */
   .field {
     @apply w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-[#111c2d]
@@ -27,7 +27,6 @@
     @apply mb-1.5 block text-xs font-semibold text-slate-700;
   }
 
-  /* Header kolom tabel admin. */
   .th {
     @apply px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500;
   }
@@ -35,11 +34,42 @@
   .td {
     @apply px-5 py-4 align-middle text-sm text-slate-700;
   }
+
+  /* Garis bawah yang tumbuh dari kiri saat tautan navigasi di-hover. */
+  .nav-underline {
+    @apply relative;
+  }
+
+  .nav-underline::after {
+    content: "";
+    @apply absolute bottom-1 left-3 right-3 h-0.5 origin-left scale-x-0 rounded-full bg-[#0b64b4] transition-transform duration-300;
+  }
+
+  .nav-underline:hover::after,
+  .nav-underline[data-active="true"]::after {
+    @apply scale-x-100;
+  }
+
+  /* Kartu konten publik: sedikit terangkat saat disentuh kursor. */
+  .card-lift {
+    @apply transition-[transform,box-shadow,border-color] duration-300 ease-out
+           hover:-translate-y-1 hover:border-[#0b64b4]/30 hover:shadow-xl;
+  }
+
+  /* Gambar di dalam kartu ikut membesar halus saat kartunya di-hover. */
+  .media-zoom {
+    @apply transition-transform duration-[600ms] ease-out group-hover:scale-[1.06];
+  }
 }
 
 .text-display {
-  @apply text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight sm:leading-none tracking-tight;
+  @apply text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl sm:leading-none md:text-5xl;
 }
+
+/* ── Animasi ──────────────────────────────────────────────────────────────
+   Semuanya singkat (< 0.7s), tanpa gerakan memantul, dan hanya menganimasikan
+   transform + opacity supaya tetap terasa profesional dan tidak membebani
+   rendering. */
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -49,6 +79,47 @@
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* Masuk dari bawah — dipakai blok konten halaman publik. */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-rise {
+  opacity: 0;
+  animation: riseIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Masuk dari samping — dipakai kolom hero. */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-left {
+  opacity: 0;
+  animation: slideInLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-right {
+  opacity: 0;
+  animation: slideInRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Jeda bertahap untuk daftar kartu, memberi kesan konten "mengalir" masuk
+   alih-alih muncul serentak. */
+.delay-1 { animation-delay: 0.06s; }
+.delay-2 { animation-delay: 0.12s; }
+.delay-3 { animation-delay: 0.18s; }
+.delay-4 { animation-delay: 0.24s; }
+.delay-5 { animation-delay: 0.30s; }
+.delay-6 { animation-delay: 0.36s; }
 
 /* Dialog: sedikit membesar saat muncul supaya terasa "naik" ke depan. */
 @keyframes popIn {
@@ -70,7 +141,7 @@
   animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Placeholder saat data admin sedang dimuat. */
+/* Placeholder saat data sedang dimuat. */
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
@@ -93,7 +164,7 @@
   animation: shimmer 1.6s infinite;
 }
 
-/* Infinite Marquee Ticker Animation (Moving Left) */
+/* Marquee logo mitra. */
 @keyframes marquee {
   0%   { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
@@ -102,20 +173,52 @@
 .animate-marquee {
   display: flex;
   width: max-content;
-  animation: marquee 30s linear infinite;
+  animation: marquee 40s linear infinite;
 }
 
 .animate-marquee:hover {
   animation-play-state: paused;
 }
 
-/* Hormati preferensi sistem "kurangi animasi". */
+/* Kilau lembut yang menyapu tombol utama sekali saat di-hover. */
+@keyframes sheen {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to   { transform: translateX(220%) skewX(-20deg); }
+}
+
+.btn-sheen {
+  @apply relative overflow-hidden;
+}
+
+.btn-sheen::after {
+  content: "";
+  @apply pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/25 opacity-0;
+}
+
+.btn-sheen:hover::after {
+  @apply opacity-100;
+  animation: sheen 0.75s ease-out;
+}
+
+/*
+  Hormati preferensi sistem "kurangi animasi".
+  Elemen ber-`animate-rise`/`slide` dimulai dari opacity:0, jadi animasinya
+  tidak cukup dimatikan — opacity-nya harus dikembalikan ke 1, kalau tidak
+  seluruh kontennya justru tidak terlihat sama sekali.
+*/
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-in,
-  .animate-pop-in,
-  .animate-slide-up,
-  .animate-marquee,
-  .skeleton::after {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .animate-rise,
+  .animate-slide-left,
+  .animate-slide-right {
+    opacity: 1;
+    transform: none;
   }
 }

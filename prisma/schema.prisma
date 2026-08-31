@@ -1,17 +1,24 @@
 // ============================================================
-// UC Centers — Prisma Schema (PostgreSQL)
+// UC Centers — Prisma Schema (MySQL 8)
 // ============================================================
 // Catatan desain:
 // - Semua password disimpan sebagai hash (passwordHash), bukan plaintext.
-//   Hashing (argon2id / bcrypt cost>=12) dilakukan di application layer,
-//   BUKAN di database — schema hanya menyediakan kolomnya.
+//   Hashing (bcrypt cost 12) dilakukan di application layer, BUKAN di
+//   database — schema hanya menyediakan kolomnya.
 // - onDelete: Cascade dipakai untuk data anak yang tidak berguna tanpa
 //   induknya (mis. TeamMember tanpa Center). Untuk Lead sengaja TIDAK
 //   cascade agar riwayat lead tetap ada walau Center dihapus (SetNull).
 // - Slug dipakai untuk URL publik (bukan id/cuid) supaya URL rapi & SEO-friendly.
 // - ActivityLog TIDAK otomatis terisi oleh database — harus ditulis eksplisit
-//   di setiap mutation di application layer (server action / API route).
-//   Schema hanya menyediakan tempatnya.
+//   di setiap mutation di application layer.
+//
+// CATATAN MySQL (berbeda dari versi PostgreSQL sebelumnya):
+// - Prisma memetakan `String` ke VARCHAR(191) di MySQL. Itu terlalu pendek
+//   untuk URL dan teks ringkasan, dan kelebihannya akan DIPOTONG/ditolak saat
+//   insert. Karena itu setiap kolom yang bisa panjang diberi @db.VarChar(...)
+//   atau @db.Text secara eksplisit.
+// - Scalar list (`String[]`) TIDAK didukung MySQL. Daftar permission karena itu
+//   disimpan sebagai kolom Json.
 // ============================================================
 
 generator client {
@@ -19,7 +26,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -41,12 +48,13 @@ model Role {
   id          String     @id @default(cuid())
   name        String     @unique
   slug        String     @unique
-  description String?
+  description String?    @db.VarChar(500)
   scope       AdminScope @default(OWN_CENTER)
-  // Daftar kunci permission (lihat lib/permissions.ts). Disimpan sebagai array
-  // teks Postgres — jumlah kuncinya tetap dan selalu dibaca sekaligus, jadi
-  // tabel join tersendiri hanya menambah kerumitan tanpa manfaat.
-  permissions String[]   @default([])
+  // Array kunci permission (lihat lib/permissions.ts) dalam bentuk JSON.
+  // MySQL tidak punya tipe array seperti Postgres, jadi kolom Json adalah
+  // padanan terdekat. Pembacaannya lewat parsePermissions() supaya isi yang
+  // rusak/legacy tidak membuat aplikasi crash.
+  permissions Json
   // Role bawaan sistem tidak boleh dihapus agar tidak ada admin yang terkunci
   // di luar sistemnya sendiri.
   isSystem    Boolean    @default(false)
@@ -87,7 +95,7 @@ model ExpertiseTag {
   id        String   @id @default(cuid())
   name      String   @unique
   slug      String   @unique
-  colorHex  String? // untuk badge warna konsisten lintas halaman
+  colorHex  String?  @db.VarChar(9) // #RRGGBB atau #RRGGBBAA
   createdAt DateTime @default(now())
 
   centers  CenterExpertise[]
@@ -105,14 +113,14 @@ enum HeroMediaType {
 
 model Center {
   id            String        @id @default(cuid())
-  name          String
+  name          String        @db.VarChar(255)
   slug          String        @unique
-  tagline       String?
-  logoUrl       String?
+  tagline       String?       @db.VarChar(500)
+  logoUrl       String?       @db.VarChar(1000)
   heroMediaType HeroMediaType @default(IMAGE)
-  heroMediaUrl  String? // image URL ATAU embed URL video (YouTube/Vimeo)
+  heroMediaUrl  String?       @db.VarChar(1000) // image URL ATAU embed URL video
   aboutContent  String?       @db.Text
-  profilePdfUrl String? // tombol "Unduh Profil"
+  profilePdfUrl String?       @db.VarChar(1000) // tombol "Unduh Profil"
   isPublished   Boolean       @default(true)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -135,14 +143,15 @@ model CenterExpertise {
   tag      ExpertiseTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([centerId, tagId])
+  @@index([tagId])
 }
 
 model CenterService {
   id          String  @id @default(cuid())
   centerId    String
   center      Center  @relation(fields: [centerId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
+  title       String  @db.VarChar(255)
+  description String? @db.VarChar(1000)
   sortOrder   Int     @default(0)
 
   @@index([centerId])
@@ -152,10 +161,10 @@ model TeamMember {
   id        String   @id @default(cuid())
   centerId  String
   center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
-  name      String
-  role      String
-  email     String?  // ditampilkan di halaman center saat namanya diklik
-  photoUrl  String?
+  name      String   @db.VarChar(255)
+  role      String   @db.VarChar(255)
+  email     String? // ditampilkan di halaman center saat namanya diklik
+  photoUrl  String?  @db.VarChar(1000)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
@@ -164,8 +173,8 @@ model TeamMember {
 
 model ClientLogo {
   id        String   @id @default(cuid())
-  name      String
-  logoUrl   String
+  name      String   @db.VarChar(255)
+  logoUrl   String   @db.VarChar(1000)
   centerId  String? // null = tampil global (Beranda), diisi = khusus 1 center
   center    Center?  @relation(fields: [centerId], references: [id], onDelete: Cascade)
   sortOrder Int      @default(0)
@@ -182,12 +191,12 @@ model PortfolioProject {
   id               String   @id @default(cuid())
   centerId         String
   center           Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
-  title            String
+  title            String   @db.VarChar(255)
   slug             String   @unique
-  summary          String?
+  summary          String?  @db.VarChar(1000)
   caseStudyContent String?  @db.Text
-  coverImageUrl    String?
-  videoEmbedUrl    String? // opsional, embed YouTube/Vimeo
+  coverImageUrl    String?  @db.VarChar(1000)
+  videoEmbedUrl    String?  @db.VarChar(1000) // opsional, embed YouTube/Vimeo
   isHighlighted    Boolean  @default(false) // tampil di Beranda
   isPublished      Boolean  @default(true)
   createdAt        DateTime @default(now())
@@ -207,10 +216,11 @@ model ProjectExpertise {
   tag       ExpertiseTag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([projectId, tagId])
+  @@index([tagId])
 }
 
 // ------------------------------------------------------------
-// ARTIKEL (halaman publik ke-5 — lihat catatan di atas)
+// ARTIKEL
 // ------------------------------------------------------------
 
 enum ArticleStatus {
@@ -227,17 +237,17 @@ model ArticleCategory {
 
 model Article {
   id             String           @id @default(cuid())
-  title          String
+  title          String           @db.VarChar(255)
   slug           String           @unique
-  summary        String?
-  content        String           @db.Text
-  coverImageUrl  String?
+  summary        String?          @db.VarChar(1000)
+  content        String           @db.LongText
+  coverImageUrl  String?          @db.VarChar(1000)
   categoryId     String?
   category       ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   status         ArticleStatus    @default(DRAFT)
   publishedAt    DateTime?
-  seoTitle       String?
-  seoDescription String?
+  seoTitle       String?          @db.VarChar(255)
+  seoDescription String?          @db.VarChar(500)
   authorId       String?
   author         AdminUser?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
   createdAt      DateTime         @default(now())
@@ -247,16 +257,17 @@ model Article {
 
   @@index([status, publishedAt])
   @@index([categoryId])
+  @@index([authorId])
 }
 
 model ArticleAttachment {
   id            String   @id @default(cuid())
   articleId     String
   article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  fileUrl       String // URL di object storage — WAJIB bucket public-read khusus folder ini
-  fileName      String
+  fileUrl       String   @db.VarChar(1000)
+  fileName      String   @db.VarChar(255)
   fileSizeBytes Int?
-  mimeType      String? // validasi whitelist mime type dilakukan di application layer sebelum upload
+  mimeType      String?  @db.VarChar(100)
   createdAt     DateTime @default(now())
 
   @@index([articleId])
@@ -282,10 +293,10 @@ model Lead {
   id          String     @id @default(cuid())
   centerId    String?
   center      Center?    @relation(fields: [centerId], references: [id], onDelete: SetNull)
-  name        String
-  email       String
-  phone       String?
-  subject     String? // judul singkat dari form Kontak
+  name        String     @db.VarChar(255)
+  email       String     @db.VarChar(255)
+  phone       String?    @db.VarChar(50)
+  subject     String?    @db.VarChar(255) // judul singkat dari form Kontak
   message     String?    @db.Text
   source      LeadSource
   status      LeadStatus @default(NEW)
@@ -296,6 +307,8 @@ model Lead {
 
   @@index([centerId])
   @@index([status])
+  @@index([handledById])
+  @@index([createdAt])
 }
 
 // ------------------------------------------------------------
@@ -306,8 +319,8 @@ model ActivityLog {
   id         String    @id @default(cuid())
   actorId    String
   actor      AdminUser @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  action     String // "CREATE" | "UPDATE" | "DELETE" | "PUBLISH" | dst — pakai konstanta di app layer
-  entityType String // "Center" | "Article" | "PortfolioProject" | dst
+  action     String    @db.VarChar(50)
+  entityType String    @db.VarChar(50)
   entityId   String
   metadata   Json? // simpan before/after value kalau perlu audit detail
   createdAt  DateTime  @default(now())
@@ -315,15 +328,16 @@ model ActivityLog {
   @@index([actorId])
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([action])
 }
 
 // ------------------------------------------------------------
-// SITE SETTINGS (hero copy, trust strip, dsb — konten Beranda)
+// SITE SETTINGS (konten beranda, kontak, media sosial)
 // ------------------------------------------------------------
 
 model SiteSetting {
   id        String   @id @default(cuid())
-  key       String   @unique // mis. "hero_headline", "trust_stat_centers"
+  key       String   @unique
   value     Json
   updatedAt DateTime @updatedAt
 }

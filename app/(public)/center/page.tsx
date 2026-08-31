@@ -41,9 +41,13 @@ export default async function CenterDirectoryPage({
             query
               ? {
                   OR: [
-                    { name: { contains: query, mode: "insensitive" } },
-                    { tagline: { contains: query, mode: "insensitive" } },
-                    { aboutContent: { contains: query, mode: "insensitive" } },
+                    // `mode: "insensitive"` khusus PostgreSQL dan ditolak MySQL.
+                    // Tidak diperlukan di sini: kolasi utf8mb4_unicode_ci yang
+                    // dipakai database ini sudah membandingkan tanpa
+                    // membedakan huruf besar-kecil.
+                    { name: { contains: query } },
+                    { tagline: { contains: query } },
+                    { aboutContent: { contains: query } },
                   ],
                 }
               : {},
@@ -62,6 +66,8 @@ export default async function CenterDirectoryPage({
           _count: { select: { projects: true, team: true } },
         },
         orderBy,
+        // Batasi agar direktori tidak memuat seluruh isi tabel sekaligus.
+        take: 60,
       });
 
       data = { centers: centers as any, tags: tags as any };
@@ -159,8 +165,12 @@ export default async function CenterDirectoryPage({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data.centers.map((center: any) => (
-            <Card key={center.id} className="flex flex-col justify-between hover:-translate-y-1 group">
+          {data.centers.map((center: any, index: number) => (
+            <Card
+              key={center.id}
+              className="card-lift animate-rise flex flex-col justify-between group"
+              style={{ animationDelay: `${Math.min(index, 5) * 70}ms` }}
+            >
               <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-blue-50 border border-blue-100 flex items-center justify-center text-[#003366] font-bold text-xl">
@@ -170,7 +180,7 @@ export default async function CenterDirectoryPage({
                         alt={center.name}
                         fill
                         sizes="56px"
-                        className="object-cover"
+                        className="media-zoom object-cover"
                       />
                     ) : (
                       center.name.charAt(0)

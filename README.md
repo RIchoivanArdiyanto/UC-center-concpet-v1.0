@@ -1,6 +1,6 @@
 # UC Centers — Setup Docker Localhost Otomatis
 
-Aplikasi **UC Centers** (Next.js 14 + PostgreSQL 16 + Nginx) berjalan otomatis
+Aplikasi **UC Centers** (Next.js 14 + MySQL 8 + Nginx) berjalan otomatis
 lewat Docker. Tidak ada langkah manual selain menyalin `.env`.
 
 ---
@@ -15,7 +15,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Kontainer `uc-postgres`, `uc-app`, dan `uc-nginx` menyala; database dibuat,
+Kontainer `uc-mysql`, `uc-app`, dan `uc-nginx` menyala; database dibuat,
 migrasi dijalankan, dan data awal di-seed otomatis.
 
 ---
@@ -27,7 +27,7 @@ migrasi dijalankan, dan data awal di-seed otomatis.
 | Website publik | <http://localhost:8090> |
 | Panel admin | <http://localhost:8090/admin/login> |
 | Health check | <http://localhost:8090/api/health> |
-| PostgreSQL (DBeaver/psql) | `localhost:5440` — db `uccenters`, user `postgres` |
+| MySQL (DBeaver/Workbench) | `localhost:3310` — db `uccenters`, user `uccenters`, password `uccenters` |
 | App langsung (bypass Nginx) | <http://localhost:3100> |
 
 **Login admin pertama** — diatur lewat `.env` (`SEED_ADMIN_USERNAME`,
@@ -35,7 +35,7 @@ migrasi dijalankan, dan data awal di-seed otomatis.
 password `Password123!`. **Ganti sebelum dipakai di server.**
 Login menerima username maupun email.
 
-> **Port sengaja tidak memakai 80/5432.** Blok 8090 / 5440 / 3100 dipilih agar
+> **Port sengaja tidak memakai 80/5432.** Blok 8090 / 3310 / 3100 dipilih agar
 > tidak bentrok dengan project Docker lain di mesin ini — `gudang-elektronik`
 > (3000 / 5433 / 8080) dan `rsudrme` (5434 / 8081–8083). Ganti lewat `WEB_PORT`
 > di `.env`, dan sesuaikan juga `NEXTAUTH_URL`.
@@ -49,8 +49,10 @@ Login menerima username maupun email.
    Kontainer yang dihentikan manual (`docker compose stop`) tetap dibiarkan mati.
 2. **Auto migrate + seed** — `docker/entrypoint.sh` menjalankan
    `prisma migrate deploy` lalu seed sebelum server naik. Keduanya idempoten.
-3. **Urutan start terjaga** — `app` menunggu `db` lolos healthcheck (`pg_isready`).
-4. **Hanya satu port terbuka** — PostgreSQL berada di jaringan internal Docker.
+3. **Urutan start terjaga** — `app` menunggu MySQL benar-benar menerima query
+   (healthcheck-nya menjalankan `SELECT 1`, bukan sekadar `mysqladmin ping` yang
+   sudah balas OK sebelum database siap).
+4. **Hanya satu port terbuka** — MySQL berada di jaringan internal Docker.
 
 > Agar benar-benar menyala setelah komputer restart, pastikan Docker Desktop
 > ikut autostart: **Settings → General → "Start Docker Desktop when you sign in"**.
@@ -97,13 +99,13 @@ memang di-host di tempat lain.
 
 ---
 
-## 🗄️ Database (PostgreSQL)
+## 🗄️ Database (MySQL 8)
 
 - Skema: [`prisma/schema.prisma`](prisma/schema.prisma).
 - Migrasi di `prisma/migrations/`, diterapkan otomatis saat kontainer start.
 - Data awal (role, admin, center, tag, portfolio, artikel, konten beranda) dari
   [`prisma/seed.ts`](prisma/seed.ts).
-- Data persisten di volume `uc-centers_postgres_data`.
+- Data persisten di volume `uc-centers_mysql_data`.
 
 ```bash
 npx prisma studio
@@ -117,7 +119,7 @@ docker compose down -v && docker compose up -d --build
 
 ---
 
-## 🔒 Deploy ke VPS
+## 🔒 Deploy ke Server UC
 
 Gunakan overlay produksi. **Perhatikan `-f` yang eksplisit** — menyebut file
 secara manual membuat Compose tidak memuat `docker-compose.override.yml`, dan
@@ -134,7 +136,7 @@ Sebelum menjalankannya, di `.env` server:
    ```bash
    openssl rand -base64 32
    ```
-2. **Ganti `DB_PASSWORD`** dari nilai contoh `postgres`.
+2. **Ganti `DB_PASSWORD` dan `DB_ROOT_PASSWORD`** dari nilai contohnya.
 3. **Ganti `SEED_ADMIN_PASSWORD`**, lalu setelah login pertama set
    `SKIP_SEED=true` agar seed tidak menimpa perubahan Anda.
 4. **Set `NEXTAUTH_URL`** ke domain HTTPS produksi, mis. `https://uccenters.id`.
@@ -143,7 +145,7 @@ Sebelum menjalankannya, di `.env` server:
 
 | Aspek | Penanganan |
 |---|---|
-| **Database tidak terekspos** | Overlay produksi menghapus `ports:` pada service `db`; PostgreSQL hanya bisa dihubungi dari jaringan Docker internal. Akses dari luar lewat terowongan SSH: `ssh -L 5440:localhost:5432 user@vps -N` |
+| **Database tidak terekspos** | Overlay produksi menghapus `ports:` pada service `db`; MySQL hanya bisa dihubungi dari jaringan Docker internal. Akses dari luar lewat terowongan SSH: `ssh -L 3310:localhost:3306 user@server -N` |
 | **Kontainer web** | Hanya Nginx yang mendengarkan, dan di produksi diikat ke `127.0.0.1` agar hanya reverse proxy host (TLS) yang bisa menjangkaunya |
 | **Rahasia** | `NEXTAUTH_SECRET` tanpa nilai cadangan hardcoded; `.env` ada di `.gitignore` |
 | **Password** | bcrypt cost 12; minimal 8 karakter dengan huruf besar, kecil, dan angka; hash tidak pernah keluar lewat API |
@@ -157,7 +159,8 @@ Sebelum menjalankannya, di `.env` server:
 
 > **Belum termasuk dan perlu Anda siapkan di server:** sertifikat TLS/HTTPS
 > (mis. Caddy, Certbot, atau Cloudflare di depan Nginx host), firewall host
-> (`ufw`) yang hanya membuka 22/80/443, dan backup rutin volume PostgreSQL.
+> (`ufw`) yang hanya membuka 22/80/443, dan backup rutin volume MySQL
+> (`docker compose exec db mysqldump -u root -p uccenters > backup.sql`).
 
 ---
 
@@ -195,6 +198,7 @@ docker compose down
 | `lib/cache.ts` | Cache & rate limiter in-memory |
 | `lib/slug.ts` | Pembuatan slug URL yang unik |
 | `lib/fetch-json.ts` | Pembungkus fetch panel admin yang memunculkan pesan galat server |
+| `lib/sanitize.ts` | Pembersih HTML dari editor sebelum dirender ke pengunjung |
 | `docker/entrypoint.sh` | Migrate + seed + start server |
 
 > **Catatan:** Redis sudah dihapus dari stack. Cache dan rate limiting berjalan

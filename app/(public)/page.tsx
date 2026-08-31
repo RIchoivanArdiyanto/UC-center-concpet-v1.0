@@ -161,18 +161,18 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Left Column: Dynamic Headlines & Action */}
-            <div className="lg:col-span-7 space-y-6 text-left">
+            <div className="animate-slide-left space-y-6 text-left lg:col-span-7">
               <h1 className="text-display text-[#003366]">
                 {siteSettings.hero_headline}
               </h1>
-              <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-2xl">
+              <p className="max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
                 {siteSettings.hero_subheadline}
               </p>
               <div className="flex flex-wrap gap-4 pt-2">
-                <Link href="/center">
-                  <Button size="lg" className="shadow-lg hover:shadow-xl">
+                <Link href="/center" className="group">
+                  <Button size="lg" className="btn-sheen shadow-lg hover:shadow-xl">
                     <span>Jelajahi Center</span>
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
                   </Button>
                 </Link>
                 <Link href="/portfolio">
@@ -184,15 +184,21 @@ export default async function HomePage() {
             </div>
 
             {/* Right Column: Dynamic Hero Image */}
-            <div className="lg:col-span-5 relative">
-              <div className="relative mx-auto w-full max-w-md lg:max-w-none aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border-4 border-white">
+            <div className="animate-slide-right relative delay-2 lg:col-span-5">
+              {/* Bidang warna di belakang foto memberi kedalaman tanpa
+                  menambah aset gambar baru. */}
+              <div
+                aria-hidden="true"
+                className="absolute -right-4 -top-4 hidden h-24 w-24 rounded-2xl bg-[#0b64b4]/10 lg:block"
+              />
+              <div className="group relative mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-2xl border-4 border-white shadow-2xl lg:max-w-none">
                 <Image
                   src={siteSettings.hero_image_url}
-                  alt="UC Centers Hero"
+                  alt=""
                   fill
                   priority
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
-                  className="object-cover"
+                  className="media-zoom object-cover"
                 />
               </div>
             </div>
@@ -202,7 +208,7 @@ export default async function HomePage() {
 
       {/* Dynamic Trust Strip Counter Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#003366] rounded-2xl p-8 text-white shadow-xl grid grid-cols-2 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-blue-800">
+        <div className="animate-rise delay-3 grid grid-cols-2 gap-8 divide-y divide-blue-800 rounded-2xl bg-[#003366] p-8 text-white shadow-xl md:grid-cols-4 md:divide-x md:divide-y-0">
           <div className="flex flex-col items-center text-center p-2">
             <Building className="w-8 h-8 text-blue-400 mb-2" />
             <span className="text-3xl sm:text-4xl font-extrabold text-white">{siteSettings.stat1_number}</span>
@@ -241,8 +247,12 @@ export default async function HomePage() {
 
         {/* Bento Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {finalCenters.map((center: any) => (
-            <Card key={center.id} className="flex flex-col justify-between hover:-translate-y-1 group">
+          {finalCenters.map((center: any, index: number) => (
+            <Card
+              key={center.id}
+              className="card-lift animate-rise flex flex-col justify-between group"
+              style={{ animationDelay: `${Math.min(index, 5) * 70}ms` }}
+            >
               <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-blue-50 border border-blue-100 flex items-center justify-center text-[#003366] font-bold text-lg">
@@ -252,7 +262,7 @@ export default async function HomePage() {
                         alt={center.name}
                         fill
                         sizes="48px"
-                        className="object-cover"
+                        className="media-zoom object-cover"
                       />
                     ) : (
                       center.name.charAt(0)
@@ -316,8 +326,12 @@ export default async function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {finalProjects.map((project: any) => (
-              <Card key={project.id} className="flex flex-col justify-between hover:-translate-y-1">
+            {finalProjects.map((project: any, index: number) => (
+              <Card
+                key={project.id}
+                className="card-lift animate-rise group flex flex-col justify-between"
+                style={{ animationDelay: `${Math.min(index, 5) * 70}ms` }}
+              >
                 <div className="relative w-full aspect-video bg-slate-100 overflow-hidden">
                   {project.coverImageUrl ? (
                     <Image

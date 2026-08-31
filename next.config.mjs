@@ -9,6 +9,18 @@ const nextConfig = {
   poweredByHeader: false,
 
   images: {
+    // Gambar dari sumber luar (mis. Unsplash pada data contoh) diambil ulang
+    // oleh optimizer Next setiap kali cache habis. Ketika sumbernya lambat atau
+    // membatasi laju, permintaan itu gagal dengan 500 dan kartunya tampil
+    // kosong. TTL panjang membuat satu kali berhasil menutupi 30 hari
+    // berikutnya. Gambar yang diunggah lewat panel tersimpan lokal dan tidak
+    // terpengaruh sama sekali.
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+    formats: ["image/avif", "image/webp"],
+    // CATATAN KEAMANAN: hostname "**" berarti server ini mau mem-proxy gambar
+    // dari alamat https mana pun. Itu memang dibutuhkan selama admin masih
+    // boleh menempel URL eksternal. Bila nanti seluruh gambar sudah diunggah
+    // lewat panel, ganti daftar ini dengan host yang benar-benar dipakai.
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
 

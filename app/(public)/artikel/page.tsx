@@ -34,6 +34,9 @@ export default async function ArticlesPage({
         _count: { select: { attachments: true } },
       },
       orderBy: { publishedAt: "desc" },
+      // Tanpa batas, halaman ini memuat SELURUH artikel yang pernah terbit
+      // dalam satu request — makin lama makin berat dan akhirnya timeout.
+      take: 30,
     });
   } catch (err) {
     console.warn("DB connection offline during articles render");
@@ -78,7 +81,7 @@ export default async function ArticlesPage({
 
       {/* Featured Article Card */}
       {featuredArticle && !categoryFilter && (
-        <Card className="overflow-hidden hover:shadow-xl transition-shadow">
+        <Card className="card-lift animate-rise group overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-12">
             <div className="lg:col-span-7 relative aspect-video lg:aspect-auto min-h-[260px]">
               {featuredArticle.coverImageUrl ? (
@@ -88,7 +91,7 @@ export default async function ArticlesPage({
                   fill
                   priority
                   sizes="(max-width: 1200px) 100vw, 60vw"
-                  className="object-cover"
+                  className="media-zoom object-cover"
                 />
               ) : (
                 <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400">
@@ -135,8 +138,12 @@ export default async function ArticlesPage({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {(categoryFilter ? articles : regularArticles).map((article) => (
-            <Card key={article.id} className="flex flex-col justify-between hover:-translate-y-1 group">
+          {(categoryFilter ? articles : regularArticles).map((article, index) => (
+            <Card
+              key={article.id}
+              className="card-lift animate-rise flex flex-col justify-between group"
+              style={{ animationDelay: `${Math.min(index, 5) * 70}ms` }}
+            >
               <div>
                 <div className="relative w-full aspect-video bg-slate-100 overflow-hidden">
                   {article.coverImageUrl ? (

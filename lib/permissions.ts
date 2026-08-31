@@ -114,6 +114,30 @@ export const DEFAULT_CENTER_ADMIN_PERMISSIONS: Permission[] = [
   PERMISSIONS.LEADS_MANAGE,
 ];
 
+/**
+ * Baca kolom `Role.permissions`.
+ *
+ * Di MySQL kolom ini bertipe Json (MySQL tidak punya tipe array seperti
+ * Postgres), sehingga Prisma mengembalikannya sebagai JsonValue — bisa berupa
+ * array, string JSON, null, atau nilai lama yang bentuknya tidak terduga.
+ * Fungsi ini menormalkan semuanya menjadi daftar permission yang valid, supaya
+ * satu baris data yang rusak tidak membuat seluruh panel gagal dimuat.
+ */
+export function parsePermissions(value: unknown): Permission[] {
+  let raw = value;
+
+  // Toleransi bila nilainya tersimpan sebagai string JSON.
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+
+  return sanitizePermissions(raw);
+}
+
 export function isValidPermission(key: string): key is Permission {
   return (ALL_PERMISSIONS as string[]).includes(key);
 }

@@ -28,6 +28,7 @@ async function main() {
   // perlu diklik manual di panel.
   const superAdminRole = await prisma.role.upsert({
     where: { slug: "super-admin" },
+    // Array JS diserialisasi Prisma menjadi kolom Json MySQL.
     update: { permissions: ALL_PERMISSIONS, scope: "ALL_CENTERS", isSystem: true },
     create: {
       id: "role_super_admin",

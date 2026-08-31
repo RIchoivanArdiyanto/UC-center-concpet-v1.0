@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/cache";
+import { parsePermissions } from "@/lib/permissions";
 
 /**
  * NEXTAUTH_SECRET tidak lagi punya nilai cadangan hardcoded. Rahasia yang
@@ -77,7 +78,7 @@ export const authOptions: NextAuthOptions = {
           roleName: user.role.name,
           roleSlug: user.role.slug,
           scope: user.role.scope,
-          permissions: user.role.permissions,
+          permissions: parsePermissions(user.role.permissions),
         } as never;
       },
     }),
@@ -109,7 +110,7 @@ export const authOptions: NextAuthOptions = {
         token.roleId = fresh.roleId;
         token.roleName = fresh.role.name;
         token.scope = fresh.role.scope;
-        token.permissions = fresh.role.permissions;
+        token.permissions = parsePermissions(fresh.role.permissions);
         token.name = fresh.name;
         token.email = fresh.email;
         token.username = fresh.username;

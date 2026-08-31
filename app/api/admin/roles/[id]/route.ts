@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { ApiError, handleApiError, readJson, requireAdmin } from "@/lib/api";
-import { PERMISSIONS, sanitizePermissions } from "@/lib/permissions";
+import { PERMISSIONS, parsePermissions, sanitizePermissions } from "@/lib/permissions";
 
 // Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
 // dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
@@ -57,10 +57,13 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       action: "UPDATE",
       entityType: "Role",
       entityId: updated.id,
-      metadata: { name: updated.name, permissions: updated.permissions.length },
+      metadata: {
+        name: updated.name,
+        permissions: parsePermissions(updated.permissions).length,
+      },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({ ...updated, permissions: parsePermissions(updated.permissions) });
   } catch (error) {
     return handleApiError("Admin Role PUT", error);
   }

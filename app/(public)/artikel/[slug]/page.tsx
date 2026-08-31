@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { htmlToPlainText, sanitizeRichText } from "@/lib/sanitize";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, User, ChevronRight, FileDown } from "lucide-react";
@@ -21,7 +22,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
     return {
       title: article.seoTitle || `${article.title} — UC Centers Insight`,
-      description: article.seoDescription || article.summary || undefined,
+      description:
+        article.seoDescription || htmlToPlainText(article.summary, 160) || undefined,
     };
   } catch (err) {
     return {};
@@ -105,7 +107,10 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
       {/* Article Content */}
       <div
         className="prose prose-slate max-w-none text-slate-800 leading-relaxed prose-headings:font-bold prose-headings:text-[#003366] prose-a:text-[#0b64b4] text-base"
-        dangerouslySetInnerHTML={{ __html: article.content || "" }}
+        // Dibersihkan di server: penulis artikel bisa jadi admin ber-role
+          // terbatas, dan <script> dari mereka akan berjalan di browser SETIAP
+          // pengunjung termasuk Super Admin.
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(article.content) }}
       />
 
       {/* Attachments Section */}

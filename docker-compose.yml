@@ -1,6 +1,6 @@
 # ============================================================================
 #  UC Centers — Orchestrator 3 container
-#    db    : PostgreSQL 16          (internal)
+#    db    : MySQL 8                (internal)
 #    app   : Next.js 14 standalone  (internal, auto migrate + seed saat start)
 #    nginx : reverse proxy          (satu-satunya pintu ke host)
 #
@@ -18,24 +18,43 @@ name: uc-centers
 services:
   # ── Database ──────────────────────────────────────────────────────────────
   db:
-    image: postgres:16-alpine
-    container_name: uc-postgres
+    image: mysql:8.0
+    container_name: uc-mysql
     restart: unless-stopped
+    # utf8mb4 WAJIB: kolasi default MySQL 8 sudah utf8mb4, tapi ditulis
+    # eksplisit agar emoji dan karakter non-latin (mis. tanda pisah "–" pada
+    # jam operasional) tidak berubah jadi tanda tanya.
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+      # Nama tabel Prisma memakai huruf besar ("AdminUser"). Di Linux MySQL
+      # peka huruf besar-kecil, di Windows/macOS tidak — nilai 0 menjaga
+      # perilakunya sama di semua mesin.
+      - "--lower-case-table-names=0"
+      - "--max-connections=100"
     environment:
-      POSTGRES_USER:     ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB:       ${DB_NAME:-uccenters}
+      MYSQL_DATABASE:      ${DB_NAME:-uccenters}
+      MYSQL_USER:          ${DB_USER:-uccenters}
+      MYSQL_PASSWORD:      ${DB_PASSWORD:-uccenters}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
       TZ: Asia/Jakarta
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     expose:
-      - 5432
+      - 3306
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-uccenters}"]
-      interval: 5s
+      # `mysqladmin ping` sudah balas OK sebelum database benar-benar siap
+      # menerima query, jadi dipakai query sungguhan sebagai penanda sehat.
+      test:
+        [
+          "CMD-SHELL",
+          "mysql -u$$MYSQL_USER -p$$MYSQL_PASSWORD -e 'SELECT 1' $$MYSQL_DATABASE || exit 1",
+        ]
+      interval: 10s
       timeout: 5s
-      retries: 12
-    mem_limit: 384m
+      retries: 20
+      start_period: 40s
+    mem_limit: 640m
     networks: [uc-net]
 
   # ── Aplikasi Next.js ──────────────────────────────────────────────────────
@@ -48,16 +67,17 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        condition: service_healthy    # tunggu Postgres siap sebelum migrate
+        condition: service_healthy    # tunggu MySQL siap sebelum migrate
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
       TZ: Asia/Jakarta
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-uccenters}?schema=public
+      DATABASE_URL: mysql://${DB_USER:-uccenters}:${DB_PASSWORD:-uccenters}@db:3306/${DB_NAME:-uccenters}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET wajib diisi di file .env}
       NEXTAUTH_URL:    ${NEXTAUTH_URL:-http://localhost:8090}
       SEED_ADMIN_EMAIL:    ${SEED_ADMIN_EMAIL:-admin@uccenters.id}
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-superadmin}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Password123!}
       SKIP_SEED: ${SKIP_SEED:-false}
       UPLOAD_DIR: /app/uploads
@@ -72,7 +92,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 60s     # beri waktu migrate + seed selesai
+      start_period: 90s     # beri waktu migrate + seed selesai
     mem_limit: 640m
     networks: [uc-net]
 
@@ -101,7 +121,7 @@ services:
     networks: [uc-net]
 
 volumes:
-  postgres_data:
+  mysql_data:
   uploads_data:
 
 networks:

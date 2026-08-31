@@ -1,332 +1,298 @@
--- CreateEnum
-CREATE TYPE "AdminRole" AS ENUM ('SUPER_ADMIN', 'CENTER_ADMIN');
+-- CreateTable
+CREATE TABLE `Role` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
+    `description` VARCHAR(500) NULL,
+    `scope` ENUM('ALL_CENTERS', 'OWN_CENTER') NOT NULL DEFAULT 'OWN_CENTER',
+    `permissions` JSON NOT NULL,
+    `isSystem` BOOLEAN NOT NULL DEFAULT false,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
 
--- CreateEnum
-CREATE TYPE "HeroMediaType" AS ENUM ('IMAGE', 'VIDEO');
-
--- CreateEnum
-CREATE TYPE "ArticleStatus" AS ENUM ('DRAFT', 'PUBLISHED');
-
--- CreateEnum
-CREATE TYPE "LeadSource" AS ENUM ('HOMEPAGE', 'CENTER_DETAIL', 'GENERAL_CONSULTATION');
-
--- CreateEnum
-CREATE TYPE "LeadStatus" AS ENUM ('NEW', 'CONTACTED', 'CLOSED');
+    UNIQUE INDEX `Role_name_key`(`name`),
+    UNIQUE INDEX `Role_slug_key`(`slug`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "AdminUser" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
-    "role" "AdminRole" NOT NULL DEFAULT 'CENTER_ADMIN',
-    "centerId" TEXT,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "lastLoginAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+CREATE TABLE `AdminUser` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `username` VARCHAR(191) NOT NULL,
+    `email` VARCHAR(191) NOT NULL,
+    `passwordHash` VARCHAR(191) NOT NULL,
+    `roleId` VARCHAR(191) NOT NULL,
+    `centerId` VARCHAR(191) NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `lastLoginAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
 
-    CONSTRAINT "AdminUser_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ExpertiseTag" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "colorHex" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ExpertiseTag_pkey" PRIMARY KEY ("id")
-);
+    UNIQUE INDEX `AdminUser_username_key`(`username`),
+    UNIQUE INDEX `AdminUser_email_key`(`email`),
+    INDEX `AdminUser_centerId_idx`(`centerId`),
+    INDEX `AdminUser_roleId_idx`(`roleId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "Center" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "tagline" TEXT,
-    "logoUrl" TEXT,
-    "heroMediaType" "HeroMediaType" NOT NULL DEFAULT 'IMAGE',
-    "heroMediaUrl" TEXT,
-    "aboutContent" TEXT,
-    "profilePdfUrl" TEXT,
-    "isPublished" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+CREATE TABLE `ExpertiseTag` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
+    `colorHex` VARCHAR(9) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    CONSTRAINT "Center_pkey" PRIMARY KEY ("id")
-);
+    UNIQUE INDEX `ExpertiseTag_name_key`(`name`),
+    UNIQUE INDEX `ExpertiseTag_slug_key`(`slug`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "CenterExpertise" (
-    "centerId" TEXT NOT NULL,
-    "tagId" TEXT NOT NULL,
+CREATE TABLE `Center` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
+    `tagline` VARCHAR(500) NULL,
+    `logoUrl` VARCHAR(1000) NULL,
+    `heroMediaType` ENUM('IMAGE', 'VIDEO') NOT NULL DEFAULT 'IMAGE',
+    `heroMediaUrl` VARCHAR(1000) NULL,
+    `aboutContent` TEXT NULL,
+    `profilePdfUrl` VARCHAR(1000) NULL,
+    `isPublished` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
 
-    CONSTRAINT "CenterExpertise_pkey" PRIMARY KEY ("centerId","tagId")
-);
-
--- CreateTable
-CREATE TABLE "CenterService" (
-    "id" TEXT NOT NULL,
-    "centerId" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT "CenterService_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "TeamMember" (
-    "id" TEXT NOT NULL,
-    "centerId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "role" TEXT NOT NULL,
-    "photoUrl" TEXT,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "TeamMember_pkey" PRIMARY KEY ("id")
-);
+    UNIQUE INDEX `Center_slug_key`(`slug`),
+    INDEX `Center_isPublished_idx`(`isPublished`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "ClientLogo" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "logoUrl" TEXT NOT NULL,
-    "centerId" TEXT,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `CenterExpertise` (
+    `centerId` VARCHAR(191) NOT NULL,
+    `tagId` VARCHAR(191) NOT NULL,
 
-    CONSTRAINT "ClientLogo_pkey" PRIMARY KEY ("id")
-);
+    INDEX `CenterExpertise_tagId_idx`(`tagId`),
+    PRIMARY KEY (`centerId`, `tagId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "PortfolioProject" (
-    "id" TEXT NOT NULL,
-    "centerId" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "summary" TEXT,
-    "caseStudyContent" TEXT,
-    "coverImageUrl" TEXT,
-    "videoEmbedUrl" TEXT,
-    "isHighlighted" BOOLEAN NOT NULL DEFAULT false,
-    "isPublished" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+CREATE TABLE `CenterService` (
+    `id` VARCHAR(191) NOT NULL,
+    `centerId` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `description` VARCHAR(1000) NULL,
+    `sortOrder` INTEGER NOT NULL DEFAULT 0,
 
-    CONSTRAINT "PortfolioProject_pkey" PRIMARY KEY ("id")
-);
+    INDEX `CenterService_centerId_idx`(`centerId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "ProjectExpertise" (
-    "projectId" TEXT NOT NULL,
-    "tagId" TEXT NOT NULL,
+CREATE TABLE `TeamMember` (
+    `id` VARCHAR(191) NOT NULL,
+    `centerId` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `role` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(191) NULL,
+    `photoUrl` VARCHAR(1000) NULL,
+    `sortOrder` INTEGER NOT NULL DEFAULT 0,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    CONSTRAINT "ProjectExpertise_pkey" PRIMARY KEY ("projectId","tagId")
-);
-
--- CreateTable
-CREATE TABLE "ArticleCategory" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-
-    CONSTRAINT "ArticleCategory_pkey" PRIMARY KEY ("id")
-);
+    INDEX `TeamMember_centerId_idx`(`centerId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "Article" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "summary" TEXT,
-    "content" TEXT NOT NULL,
-    "coverImageUrl" TEXT,
-    "categoryId" TEXT,
-    "status" "ArticleStatus" NOT NULL DEFAULT 'DRAFT',
-    "publishedAt" TIMESTAMP(3),
-    "seoTitle" TEXT,
-    "seoDescription" TEXT,
-    "authorId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+CREATE TABLE `ClientLogo` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `logoUrl` VARCHAR(1000) NOT NULL,
+    `centerId` VARCHAR(191) NULL,
+    `sortOrder` INTEGER NOT NULL DEFAULT 0,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    CONSTRAINT "Article_pkey" PRIMARY KEY ("id")
-);
+    INDEX `ClientLogo_centerId_idx`(`centerId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "ArticleAttachment" (
-    "id" TEXT NOT NULL,
-    "articleId" TEXT NOT NULL,
-    "fileUrl" TEXT NOT NULL,
-    "fileName" TEXT NOT NULL,
-    "fileSizeBytes" INTEGER,
-    "mimeType" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `PortfolioProject` (
+    `id` VARCHAR(191) NOT NULL,
+    `centerId` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
+    `summary` VARCHAR(1000) NULL,
+    `caseStudyContent` TEXT NULL,
+    `coverImageUrl` VARCHAR(1000) NULL,
+    `videoEmbedUrl` VARCHAR(1000) NULL,
+    `isHighlighted` BOOLEAN NOT NULL DEFAULT false,
+    `isPublished` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
 
-    CONSTRAINT "ArticleAttachment_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Lead" (
-    "id" TEXT NOT NULL,
-    "centerId" TEXT,
-    "name" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "phone" TEXT,
-    "message" TEXT,
-    "source" "LeadSource" NOT NULL,
-    "status" "LeadStatus" NOT NULL DEFAULT 'NEW',
-    "handledById" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Lead_pkey" PRIMARY KEY ("id")
-);
+    UNIQUE INDEX `PortfolioProject_slug_key`(`slug`),
+    INDEX `PortfolioProject_centerId_idx`(`centerId`),
+    INDEX `PortfolioProject_isHighlighted_idx`(`isHighlighted`),
+    INDEX `PortfolioProject_isPublished_idx`(`isPublished`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "ActivityLog" (
-    "id" TEXT NOT NULL,
-    "actorId" TEXT NOT NULL,
-    "action" TEXT NOT NULL,
-    "entityType" TEXT NOT NULL,
-    "entityId" TEXT NOT NULL,
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `ProjectExpertise` (
+    `projectId` VARCHAR(191) NOT NULL,
+    `tagId` VARCHAR(191) NOT NULL,
 
-    CONSTRAINT "ActivityLog_pkey" PRIMARY KEY ("id")
-);
+    INDEX `ProjectExpertise_tagId_idx`(`tagId`),
+    PRIMARY KEY (`projectId`, `tagId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE "SiteSetting" (
-    "id" TEXT NOT NULL,
-    "key" TEXT NOT NULL,
-    "value" JSONB NOT NULL,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+CREATE TABLE `ArticleCategory` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
 
-    CONSTRAINT "SiteSetting_pkey" PRIMARY KEY ("id")
-);
+    UNIQUE INDEX `ArticleCategory_name_key`(`name`),
+    UNIQUE INDEX `ArticleCategory_slug_key`(`slug`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateIndex
-CREATE UNIQUE INDEX "AdminUser_email_key" ON "AdminUser"("email");
+-- CreateTable
+CREATE TABLE `Article` (
+    `id` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
+    `summary` VARCHAR(1000) NULL,
+    `content` LONGTEXT NOT NULL,
+    `coverImageUrl` VARCHAR(1000) NULL,
+    `categoryId` VARCHAR(191) NULL,
+    `status` ENUM('DRAFT', 'PUBLISHED') NOT NULL DEFAULT 'DRAFT',
+    `publishedAt` DATETIME(3) NULL,
+    `seoTitle` VARCHAR(255) NULL,
+    `seoDescription` VARCHAR(500) NULL,
+    `authorId` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
 
--- CreateIndex
-CREATE INDEX "AdminUser_centerId_idx" ON "AdminUser"("centerId");
+    UNIQUE INDEX `Article_slug_key`(`slug`),
+    INDEX `Article_status_publishedAt_idx`(`status`, `publishedAt`),
+    INDEX `Article_categoryId_idx`(`categoryId`),
+    INDEX `Article_authorId_idx`(`authorId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateIndex
-CREATE UNIQUE INDEX "ExpertiseTag_name_key" ON "ExpertiseTag"("name");
+-- CreateTable
+CREATE TABLE `ArticleAttachment` (
+    `id` VARCHAR(191) NOT NULL,
+    `articleId` VARCHAR(191) NOT NULL,
+    `fileUrl` VARCHAR(1000) NOT NULL,
+    `fileName` VARCHAR(255) NOT NULL,
+    `fileSizeBytes` INTEGER NULL,
+    `mimeType` VARCHAR(100) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
--- CreateIndex
-CREATE UNIQUE INDEX "ExpertiseTag_slug_key" ON "ExpertiseTag"("slug");
+    INDEX `ArticleAttachment_articleId_idx`(`articleId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateIndex
-CREATE UNIQUE INDEX "Center_slug_key" ON "Center"("slug");
+-- CreateTable
+CREATE TABLE `Lead` (
+    `id` VARCHAR(191) NOT NULL,
+    `centerId` VARCHAR(191) NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NOT NULL,
+    `phone` VARCHAR(50) NULL,
+    `subject` VARCHAR(255) NULL,
+    `message` TEXT NULL,
+    `source` ENUM('HOMEPAGE', 'CENTER_DETAIL', 'GENERAL_CONSULTATION') NOT NULL,
+    `status` ENUM('NEW', 'CONTACTED', 'CLOSED') NOT NULL DEFAULT 'NEW',
+    `handledById` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
 
--- CreateIndex
-CREATE INDEX "Center_isPublished_idx" ON "Center"("isPublished");
+    INDEX `Lead_centerId_idx`(`centerId`),
+    INDEX `Lead_status_idx`(`status`),
+    INDEX `Lead_handledById_idx`(`handledById`),
+    INDEX `Lead_createdAt_idx`(`createdAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateIndex
-CREATE INDEX "CenterService_centerId_idx" ON "CenterService"("centerId");
+-- CreateTable
+CREATE TABLE `ActivityLog` (
+    `id` VARCHAR(191) NOT NULL,
+    `actorId` VARCHAR(191) NOT NULL,
+    `action` VARCHAR(50) NOT NULL,
+    `entityType` VARCHAR(50) NOT NULL,
+    `entityId` VARCHAR(191) NOT NULL,
+    `metadata` JSON NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
--- CreateIndex
-CREATE INDEX "TeamMember_centerId_idx" ON "TeamMember"("centerId");
+    INDEX `ActivityLog_actorId_idx`(`actorId`),
+    INDEX `ActivityLog_entityType_entityId_idx`(`entityType`, `entityId`),
+    INDEX `ActivityLog_createdAt_idx`(`createdAt`),
+    INDEX `ActivityLog_action_idx`(`action`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateIndex
-CREATE INDEX "ClientLogo_centerId_idx" ON "ClientLogo"("centerId");
+-- CreateTable
+CREATE TABLE `SiteSetting` (
+    `id` VARCHAR(191) NOT NULL,
+    `key` VARCHAR(191) NOT NULL,
+    `value` JSON NOT NULL,
+    `updatedAt` DATETIME(3) NOT NULL,
 
--- CreateIndex
-CREATE UNIQUE INDEX "PortfolioProject_slug_key" ON "PortfolioProject"("slug");
-
--- CreateIndex
-CREATE INDEX "PortfolioProject_centerId_idx" ON "PortfolioProject"("centerId");
-
--- CreateIndex
-CREATE INDEX "PortfolioProject_isHighlighted_idx" ON "PortfolioProject"("isHighlighted");
-
--- CreateIndex
-CREATE INDEX "PortfolioProject_isPublished_idx" ON "PortfolioProject"("isPublished");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ArticleCategory_name_key" ON "ArticleCategory"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ArticleCategory_slug_key" ON "ArticleCategory"("slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Article_slug_key" ON "Article"("slug");
-
--- CreateIndex
-CREATE INDEX "Article_status_publishedAt_idx" ON "Article"("status", "publishedAt");
-
--- CreateIndex
-CREATE INDEX "Article_categoryId_idx" ON "Article"("categoryId");
-
--- CreateIndex
-CREATE INDEX "ArticleAttachment_articleId_idx" ON "ArticleAttachment"("articleId");
-
--- CreateIndex
-CREATE INDEX "Lead_centerId_idx" ON "Lead"("centerId");
-
--- CreateIndex
-CREATE INDEX "Lead_status_idx" ON "Lead"("status");
-
--- CreateIndex
-CREATE INDEX "ActivityLog_actorId_idx" ON "ActivityLog"("actorId");
-
--- CreateIndex
-CREATE INDEX "ActivityLog_entityType_entityId_idx" ON "ActivityLog"("entityType", "entityId");
-
--- CreateIndex
-CREATE INDEX "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "SiteSetting_key_key" ON "SiteSetting"("key");
-
--- AddForeignKey
-ALTER TABLE "AdminUser" ADD CONSTRAINT "AdminUser_centerId_fkey" FOREIGN KEY ("centerId") REFERENCES "Center"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CenterExpertise" ADD CONSTRAINT "CenterExpertise_centerId_fkey" FOREIGN KEY ("centerId") REFERENCES "Center"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CenterExpertise" ADD CONSTRAINT "CenterExpertise_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "ExpertiseTag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CenterService" ADD CONSTRAINT "CenterService_centerId_fkey" FOREIGN KEY ("centerId") REFERENCES "Center"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TeamMember" ADD CONSTRAINT "TeamMember_centerId_fkey" FOREIGN KEY ("centerId") REFERENCES "Center"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ClientLogo" ADD CONSTRAINT "ClientLogo_centerId_fkey" FOREIGN KEY ("centerId") REFERENCES "Center"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    UNIQUE INDEX `SiteSetting_key_key`(`key`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE "PortfolioProject" ADD CONSTRAINT "PortfolioProject_centerId_fkey" FOREIGN KEY ("centerId") REFERENCES "Center"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `AdminUser` ADD CONSTRAINT `AdminUser_roleId_fkey` FOREIGN KEY (`roleId`) REFERENCES `Role`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ProjectExpertise" ADD CONSTRAINT "ProjectExpertise_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "PortfolioProject"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `AdminUser` ADD CONSTRAINT `AdminUser_centerId_fkey` FOREIGN KEY (`centerId`) REFERENCES `Center`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ProjectExpertise" ADD CONSTRAINT "ProjectExpertise_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "ExpertiseTag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `CenterExpertise` ADD CONSTRAINT `CenterExpertise_centerId_fkey` FOREIGN KEY (`centerId`) REFERENCES `Center`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Article" ADD CONSTRAINT "Article_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ArticleCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `CenterExpertise` ADD CONSTRAINT `CenterExpertise_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `ExpertiseTag`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Article" ADD CONSTRAINT "Article_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "AdminUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `CenterService` ADD CONSTRAINT `CenterService_centerId_fkey` FOREIGN KEY (`centerId`) REFERENCES `Center`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ArticleAttachment" ADD CONSTRAINT "ArticleAttachment_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `TeamMember` ADD CONSTRAINT `TeamMember_centerId_fkey` FOREIGN KEY (`centerId`) REFERENCES `Center`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_centerId_fkey" FOREIGN KEY ("centerId") REFERENCES "Center"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `ClientLogo` ADD CONSTRAINT `ClientLogo_centerId_fkey` FOREIGN KEY (`centerId`) REFERENCES `Center`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_handledById_fkey" FOREIGN KEY ("handledById") REFERENCES "AdminUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `PortfolioProject` ADD CONSTRAINT `PortfolioProject_centerId_fkey` FOREIGN KEY (`centerId`) REFERENCES `Center`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "AdminUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `ProjectExpertise` ADD CONSTRAINT `ProjectExpertise_projectId_fkey` FOREIGN KEY (`projectId`) REFERENCES `PortfolioProject`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ProjectExpertise` ADD CONSTRAINT `ProjectExpertise_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `ExpertiseTag`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Article` ADD CONSTRAINT `Article_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `ArticleCategory`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Article` ADD CONSTRAINT `Article_authorId_fkey` FOREIGN KEY (`authorId`) REFERENCES `AdminUser`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ArticleAttachment` ADD CONSTRAINT `ArticleAttachment_articleId_fkey` FOREIGN KEY (`articleId`) REFERENCES `Article`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Lead` ADD CONSTRAINT `Lead_centerId_fkey` FOREIGN KEY (`centerId`) REFERENCES `Center`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Lead` ADD CONSTRAINT `Lead_handledById_fkey` FOREIGN KEY (`handledById`) REFERENCES `AdminUser`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ActivityLog` ADD CONSTRAINT `ActivityLog_actorId_fkey` FOREIGN KEY (`actorId`) REFERENCES `AdminUser`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 

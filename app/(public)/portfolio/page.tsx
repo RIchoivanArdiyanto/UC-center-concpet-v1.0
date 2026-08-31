@@ -88,6 +88,8 @@ export default async function PortfolioPage({
           expertiseTags: { include: { tag: true } },
         },
         orderBy: { createdAt: "desc" },
+        // Batasi agar halaman tidak memuat seluruh isi tabel sekaligus.
+        take: 60,
       });
 
       await setCachedData(cacheKey, { projects, centers, tags }, 3600);
@@ -168,8 +170,12 @@ export default async function PortfolioPage({
 
       {/* Project Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {finalProjects.map((project: any) => (
-          <Card key={project.id} className="flex flex-col justify-between hover:-translate-y-1 group">
+        {finalProjects.map((project: any, index: number) => (
+          <Card
+            key={project.id}
+            className="card-lift animate-rise flex flex-col justify-between group"
+            style={{ animationDelay: `${Math.min(index, 5) * 70}ms` }}
+          >
             <div>
               {/* Image or Video Embed */}
               {project.videoEmbedUrl ? (

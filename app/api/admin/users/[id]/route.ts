@@ -9,7 +9,7 @@ import {
   readJson,
   requireAdmin,
 } from "@/lib/api";
-import { PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS, parsePermissions } from "@/lib/permissions";
 
 // Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
 // dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
@@ -108,14 +108,20 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     if (!existing) throw new ApiError(404, "User tidak ditemukan.");
 
     // Jangan sampai sistem kehilangan admin terakhir yang bisa mengelola user.
-    if (existing.role.permissions.includes(PERMISSIONS.USERS_MANAGE)) {
-      const remaining = await prisma.adminUser.count({
-        where: {
-          isActive: true,
-          id: { not: params.id },
-          role: { permissions: { has: PERMISSIONS.USERS_MANAGE } },
-        },
+    //
+    // Penyaringan dilakukan di aplikasi, bukan di query: `permissions` kini
+    // kolom Json (MySQL tidak punya tipe array), sehingga operator `has`
+    // milik Postgres tidak tersedia. Tabel admin selalu kecil, jadi memuat
+    // seluruh barisnya tidak jadi masalah.
+    if (parsePermissions(existing.role.permissions).includes(PERMISSIONS.USERS_MANAGE)) {
+      const others = await prisma.adminUser.findMany({
+        where: { isActive: true, id: { not: params.id } },
+        select: { role: { select: { permissions: true } } },
       });
+      const remaining = others.filter((u) =>
+        parsePermissions(u.role.permissions).includes(PERMISSIONS.USERS_MANAGE)
+      ).length;
+
       if (remaining === 0) {
         throw new ApiError(
           400,

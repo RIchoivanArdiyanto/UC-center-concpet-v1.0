@@ -121,6 +121,25 @@ export async function readJson<T = Record<string, unknown>>(req: Request): Promi
 }
 
 /**
+ * Ubah `meta.target` dari error P2002 menjadi nama kolom yang enak dibaca.
+ * MySQL memberi nama constraint seperti "ExpertiseTag_name_key"; bagian tabel
+ * dan akhiran "_key" dibuang supaya pesannya menyebut kolomnya saja.
+ */
+function describeUniqueTarget(target: unknown): string | null {
+  if (Array.isArray(target)) {
+    const fields = target.filter((t): t is string => typeof t === "string");
+    return fields.length > 0 ? fields.join(", ") : null;
+  }
+
+  if (typeof target === "string" && target) {
+    const match = /^[A-Za-z]+_(.+)_key$/.exec(target);
+    return match ? match[1].split("_").join(", ") : target;
+  }
+
+  return null;
+}
+
+/**
  * Satu-satunya tempat error route diterjemahkan jadi HTTP response.
  * Memetakan kode error Prisma yang umum ke status yang benar.
  */
@@ -132,7 +151,12 @@ export function handleApiError(scope: string, error: unknown): NextResponse {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case "P2002": {
-        const target = (error.meta?.target as string[] | undefined)?.join(", ");
+        // Bentuk `meta.target` BERBEDA antar database: PostgreSQL mengirim
+        // array nama kolom, MySQL mengirim satu string nama constraint
+        // ("ExpertiseTag_name_key"). Memanggil .join() langsung membuat
+        // TypeError di MySQL, sehingga duplikat berakhir sebagai 500 alih-alih
+        // 409. Kedua bentuk ditangani di sini.
+        const target = describeUniqueTarget(error.meta?.target);
         return NextResponse.json(
           {
             error: target

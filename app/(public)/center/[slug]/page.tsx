@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { sanitizeRichText } from "@/lib/sanitize";
 import { getCachedData, setCachedData } from "@/lib/cache";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -130,7 +131,12 @@ export default async function CenterDetailPage({ params }: { params: { slug: str
             <h2 className="text-2xl font-bold text-[#003366]">Tentang Center</h2>
             <div
               className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-sm sm:text-base"
-              dangerouslySetInnerHTML={{ __html: center.aboutContent || "<p>Informasi detail mengenai center ini sedang dalam peremajaan.</p>" }}
+              // Dibersihkan di server — lihat catatan di lib/sanitize.ts.
+              dangerouslySetInnerHTML={{
+                __html:
+                  sanitizeRichText(center.aboutContent) ||
+                  "<p>Informasi detail mengenai center ini sedang dalam peremajaan.</p>",
+              }}
             />
 
             {/* Services Grid */}

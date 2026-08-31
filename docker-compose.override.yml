@@ -1,5 +1,5 @@
-# Port host khusus development (DBeaver / hit API langsung tanpa lewat Nginx).
-# Port dipilih di blok 3100 / 5440 agar tidak bentrok dengan gudang-elektronik
+# Port host khusus development (DBeaver / MySQL Workbench / hit API langsung).
+# Port dipilih di blok 3100 / 3310 agar tidak bentrok dengan gudang-elektronik
 # (3000 / 5433 / 8080) maupun rsudrme (5434 / 8081-8083).
 # Hapus atau ganti nama file ini bila deploy ke server produksi.
 services:
@@ -8,4 +8,4 @@ services:
       - "3100:3000"
   db:
     ports:
-      - "5440:5432"
+      - "3310:3306"
