@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { PERMISSIONS } from "@/lib/permissions";
 import { normalizeTeam } from "@/lib/center-team";
+import { normalizeServices } from "@/lib/center-services";
 
 // Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
 // dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
@@ -27,6 +28,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     // `undefined` berarti form tidak mengirim tim sama sekali (mis. toggle
     // publish dari daftar) — tim yang ada tidak boleh ikut terhapus.
     const team = Array.isArray(body.team) ? normalizeTeam(body.team) : undefined;
+    const services = Array.isArray(body.services) ? normalizeServices(body.services) : undefined;
 
     const updatedCenter = await prisma.$transaction(async (tx) => {
       if (tagIds !== undefined) {
@@ -45,6 +47,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         if (team.length > 0) {
           await tx.teamMember.createMany({
             data: team.map((t) => ({ ...t, centerId: params.id })),
+          });
+        }
+      }
+
+      if (services !== undefined) {
+        // CenterService juga tidak punya kolom unique alami, jadi ditulis
+        // ulang penuh seperti tim.
+        await tx.centerService.deleteMany({ where: { centerId: params.id } });
+        if (services.length > 0) {
+          await tx.centerService.createMany({
+            data: services.map((item) => ({ ...item, centerId: params.id })),
           });
         }
       }

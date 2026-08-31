@@ -8,10 +8,12 @@ import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import { Badge } from "@/components/ui/badge";
 import { FileUploadField } from "@/components/ui/file-upload-field";
 import { useToast } from "@/components/ui/toast";
+import { RepeatableList } from "@/components/ui/repeatable-list";
 import { errorMessage, fetchJson } from "@/lib/fetch-json";
-import { ArrowLeft, Save, Plus, Trash2, Users, GripVertical } from "lucide-react";
+import { ArrowLeft, Save, Users, ListChecks } from "lucide-react";
 
 type TeamRow = { name: string; role: string; email: string; photoUrl: string };
+type ServiceRow = { title: string; description: string };
 
 export default function AdminCenterEditPage() {
   const toast = useToast();
@@ -35,6 +37,10 @@ export default function AdminCenterEditPage() {
   // Tim pakar. Sebelumnya hanya bisa diisi lewat seed — tidak ada UI-nya sama
   // sekali padahal blok "Tim Pakar" tampil di halaman center publik.
   const [team, setTeam] = useState<TeamRow[]>([]);
+
+  // Layanan & kepakaran. Sama seperti tim pakar, blok ini tampil di halaman
+  // center publik tetapi sebelumnya hanya bisa diisi lewat seed.
+  const [services, setServices] = useState<ServiceRow[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -73,23 +79,25 @@ export default function AdminCenterEditPage() {
                 photoUrl: t.photoUrl ?? "",
               }))
             );
+            setServices(
+              (current.services ?? []).map((sv: any) => ({
+                title: sv.title ?? "",
+                description: sv.description ?? "",
+              }))
+            );
           }
         })
         .finally(() => setLoading(false));
     }
   }, [isNew, params.id]);
 
+  // Pengurutan & penghapusan baris kini ditangani <RepeatableList>; di sini
+  // tinggal pembaruan nilai per kolom.
   const updateMember = (index: number, field: keyof TeamRow, value: string) =>
     setTeam((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
 
-  const moveMember = (index: number, delta: number) =>
-    setTeam((prev) => {
-      const target = index + delta;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+  const updateService = (index: number, field: keyof ServiceRow, value: string) =>
+    setServices((prev) => prev.map((sv, i) => (i === index ? { ...sv, [field]: value } : sv)));
 
   const handleToggleTag = (tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -114,6 +122,7 @@ export default function AdminCenterEditPage() {
         isPublished,
         tagIds: selectedTagIds,
         team,
+        services,
       };
 
       const url = isNew ? "/api/admin/centers" : `/api/admin/centers/${params.id}`;
@@ -213,126 +222,123 @@ export default function AdminCenterEditPage() {
           </Card>
 
           {/* Tim Pakar */}
-          <Card className="space-y-4 p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#0b64b4]" />
-                <h2 className="text-base font-bold text-[#003366]">Tim Pakar</h2>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setTeam((prev) => [...prev, { name: "", role: "", email: "", photoUrl: "" }])
-                }
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Tambah Anggota
-              </Button>
-            </div>
+          <Card className="p-6">
+            <RepeatableList<TeamRow>
+              title="Tim Pakar"
+              icon={Users}
+              itemNoun="Anggota"
+              addLabel="Tambah Anggota"
+              items={team}
+              onChange={setTeam}
+              createItem={() => ({ name: "", role: "", email: "", photoUrl: "" })}
+              description={
+                <>
+                  Tampil di kolom Tim Pakar halaman center. Urutan di sini menentukan
+                  urutan tampil. Email opsional &mdash; bila diisi, alamatnya tampil di
+                  halaman publik saat nama diklik, jadi isi hanya alamat yang memang
+                  boleh dipublikasikan.
+                </>
+              }
+              emptyHint="Belum ada anggota tim. Blok Tim Pakar tidak akan tampil di halaman publik."
+              renderFields={(member, index) => (
+                <>
+                  <div>
+                    <label htmlFor={`tm-name-${index}`} className="field-label">
+                      Nama <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      id={`tm-name-${index}`}
+                      value={member.name}
+                      onChange={(e) => updateMember(index, "name", e.target.value)}
+                      placeholder="Prof. Sari Handayani"
+                      className="field"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`tm-role-${index}`} className="field-label">
+                      Jabatan <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      id={`tm-role-${index}`}
+                      value={member.role}
+                      onChange={(e) => updateMember(index, "role", e.target.value)}
+                      placeholder="Lead Strategist"
+                      className="field"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor={`tm-email-${index}`} className="field-label">
+                      Email (opsional)
+                    </label>
+                    <input
+                      id={`tm-email-${index}`}
+                      type="email"
+                      value={member.email}
+                      onChange={(e) => updateMember(index, "email", e.target.value)}
+                      placeholder="nama@uccenters.id"
+                      className="field"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FileUploadField
+                      label="Foto (opsional)"
+                      kind="image"
+                      value={member.photoUrl}
+                      onChange={(url) => updateMember(index, "photoUrl", url)}
+                    />
+                  </div>
+                </>
+              )}
+            />
+          </Card>
 
-            <p className="text-xs text-slate-500">
-              Tampil di kolom Tim Pakar halaman center. Urutan di sini menentukan
-              urutan tampil. Email opsional &mdash; bila diisi, alamatnya tampil di
-              halaman publik saat nama diklik, jadi isi hanya alamat yang memang
-              boleh dipublikasikan.
-            </p>
-
-            {team.length === 0 ? (
-              <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center text-xs text-slate-500">
-                Belum ada anggota tim. Blok Tim Pakar tidak akan tampil di halaman publik.
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {team.map((member, index) => (
-                  <li key={index} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        <GripVertical className="h-3.5 w-3.5" />
-                        Anggota {index + 1}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          disabled={index === 0}
-                          onClick={() => moveMember(index, -1)}
-                          aria-label="Naikkan urutan"
-                          className="rounded px-2 py-0.5 text-xs font-bold text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
-                        >
-                          &uarr;
-                        </button>
-                        <button
-                          type="button"
-                          disabled={index === team.length - 1}
-                          onClick={() => moveMember(index, 1)}
-                          aria-label="Turunkan urutan"
-                          className="rounded px-2 py-0.5 text-xs font-bold text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
-                        >
-                          &darr;
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setTeam((prev) => prev.filter((_, i) => i !== index))}
-                          aria-label={`Hapus anggota ${index + 1}`}
-                          className="ml-1 rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <label htmlFor={`tm-name-${index}`} className="field-label">
-                          Nama <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          id={`tm-name-${index}`}
-                          value={member.name}
-                          onChange={(e) => updateMember(index, "name", e.target.value)}
-                          placeholder="Prof. Sari Handayani"
-                          className="field"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor={`tm-role-${index}`} className="field-label">
-                          Jabatan <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          id={`tm-role-${index}`}
-                          value={member.role}
-                          onChange={(e) => updateMember(index, "role", e.target.value)}
-                          placeholder="Lead Strategist"
-                          className="field"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label htmlFor={`tm-email-${index}`} className="field-label">
-                          Email (opsional)
-                        </label>
-                        <input
-                          id={`tm-email-${index}`}
-                          type="email"
-                          value={member.email}
-                          onChange={(e) => updateMember(index, "email", e.target.value)}
-                          placeholder="nama@uccenters.id"
-                          className="field"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <FileUploadField
-                          label="Foto (opsional)"
-                          kind="image"
-                          value={member.photoUrl}
-                          onChange={(url) => updateMember(index, "photoUrl", url)}
-                        />
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+          {/* Layanan & Kepakaran Utama */}
+          <Card className="p-6">
+            <RepeatableList<ServiceRow>
+              title="Layanan & Kepakaran Utama"
+              icon={ListChecks}
+              itemNoun="Layanan"
+              addLabel="Tambah Layanan"
+              items={services}
+              onChange={setServices}
+              createItem={() => ({ title: "", description: "" })}
+              description={
+                <>
+                  Tampil sebagai kartu &quot;Layanan &amp; Kepakaran Utama&quot; di halaman
+                  center. Urutan di sini menentukan urutan tampil.
+                </>
+              }
+              emptyHint="Belum ada layanan. Blok Layanan & Kepakaran Utama tidak akan tampil di halaman publik."
+              renderFields={(service, index) => (
+                <>
+                  <div className="sm:col-span-2">
+                    <label htmlFor={`sv-title-${index}`} className="field-label">
+                      Judul Layanan <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      id={`sv-title-${index}`}
+                      value={service.title}
+                      onChange={(e) => updateService(index, "title", e.target.value)}
+                      placeholder="Komersialisasi Riset & Paten"
+                      className="field"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor={`sv-desc-${index}`} className="field-label">
+                      Deskripsi Singkat
+                    </label>
+                    <textarea
+                      id={`sv-desc-${index}`}
+                      rows={2}
+                      value={service.description}
+                      onChange={(e) => updateService(index, "description", e.target.value)}
+                      placeholder="Pendampingan lisensi paten dan inkubasi teknologi tinggi."
+                      className="field resize-y"
+                    />
+                  </div>
+                </>
+              )}
+            />
           </Card>
         </div>
 

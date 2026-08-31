@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { PERMISSIONS } from "@/lib/permissions";
 import { normalizeTeam } from "@/lib/center-team";
+import { normalizeServices } from "@/lib/center-services";
 
 // Semua endpoint admin membaca sesi dari cookie, jadi tidak pernah bisa
 // dirender statis. Ditandai eksplisit supaya Next tidak mencobanya saat build
@@ -28,9 +29,10 @@ export async function GET() {
       where: scopeToCenter(user, "id"),
       include: {
         expertiseTags: { include: { tag: true } },
-        // Tim ikut dikirim supaya form edit center bisa memuatnya tanpa
-        // request tambahan.
+        // Tim & layanan ikut dikirim supaya form edit center bisa memuatnya
+        // tanpa request tambahan.
         team: { orderBy: { sortOrder: "asc" } },
+        services: { orderBy: { sortOrder: "asc" } },
         _count: { select: { projects: true, team: true, leads: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -59,6 +61,7 @@ export async function POST(req: Request) {
 
     const tagIds: string[] = Array.isArray(body.tagIds) ? body.tagIds : [];
     const team = normalizeTeam(body.team);
+    const services = normalizeServices(body.services);
 
     const newCenter = await prisma.center.create({
       data: {
@@ -75,6 +78,7 @@ export async function POST(req: Request) {
           ? { create: tagIds.map((tagId) => ({ tagId })) }
           : undefined,
         team: team.length ? { create: team } : undefined,
+        services: services.length ? { create: services } : undefined,
       },
     });
 

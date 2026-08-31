@@ -63,6 +63,10 @@ Login menerima username maupun email.
 
 Menu **Sistem → Users & Hak Akses** di panel admin:
 
+Form edit center juga punya blok **Tim Pakar** dan **Layanan & Kepakaran
+Utama** — keduanya tampil di halaman center publik dan bisa ditambah,
+diurutkan, serta dihapus dari panel.
+
 - **Manajemen User** — buat akun login untuk orang lain (nama, username, email,
   password, role, penugasan center), aktif/nonaktifkan, reset password, hapus.
 - **Manajemen Role** — buat role sendiri dan centang hak aksesnya per menu.
@@ -157,10 +161,45 @@ Sebelum menjalankannya, di `.env` server:
 | **Header** | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`; `X-Powered-By` dimatikan; `/admin/*` diberi `noindex` dan `no-store` |
 | **Kontainer** | Proses berjalan sebagai user non-root, `no-new-privileges`, dan filesystem read-only di produksi |
 
-> **Belum termasuk dan perlu Anda siapkan di server:** sertifikat TLS/HTTPS
-> (mis. Caddy, Certbot, atau Cloudflare di depan Nginx host), firewall host
-> (`ufw`) yang hanya membuka 22/80/443, dan backup rutin volume MySQL
-> (`docker compose exec db mysqldump -u root -p uccenters > backup.sql`).
+### Penyiapan server: TLS, firewall, backup
+
+Berkas pendukungnya ada di folder `deploy/`. Setelah kontainer berjalan:
+
+```bash
+sudo ./deploy/setup-server.sh uccenters.uc.ac.id admin@uc.ac.id
+```
+
+Satu perintah itu memasang:
+
+| Bagian | Yang dilakukan |
+|---|---|
+| **Firewall** | `ufw` hanya membuka SSH, 80, dan 443. Port aplikasi (8090), MySQL (3306/3310), dan app (3100) tidak dibuka — semuanya sudah terikat ke `127.0.0.1` oleh overlay produksi |
+| **TLS/HTTPS** | Nginx host + sertifikat Let's Encrypt lewat Certbot, redirect HTTP→HTTPS, TLS 1.2+, HSTS, dan hook reload otomatis setiap sertifikat diperbarui |
+| **Backup** | Cron harian 02:15 WIB menjalankan `deploy/backup-db.sh` — `mysqldump --single-transaction` (tidak mengunci tabel, situs tetap jalan) plus arsip berkas unggahan, disimpan 14 hari |
+
+Pemulihan:
+
+```bash
+./deploy/restore-db.sh backups/uccenters-20260829-021500.sql.gz
+```
+
+> **Docker bisa melewati ufw.** Docker menulis aturan iptables sendiri, sehingga
+> port yang di-publish ke `0.0.0.0` tetap terbuka walau ufw menolaknya. Itulah
+> sebabnya `docker-compose.prod.yml` mengikat semua port ke `127.0.0.1`.
+> Verifikasi setelah deploy — semuanya harus `127.0.0.1`, bukan `0.0.0.0`:
+> ```bash
+> sudo ss -tlnp | grep -E '3306|3310|8090|3100'
+> ```
+
+> **Tiga hal yang tetap harus Anda lakukan sendiri:**
+> 1. **Uji pemulihan backup** ke database percobaan. Backup yang belum pernah
+>    diuji belum tentu bisa dipakai.
+> 2. **Salin folder `backups/` ke penyimpanan di luar server.** Cadangan yang
+>    hanya ada di server yang sama ikut hilang bila server itu rusak.
+> 3. **Naikkan `max-age` HSTS** di `/etc/nginx/sites-available/uccenters` setelah
+>    HTTPS terbukti stabil beberapa hari. Sebelum itu, nilainya sengaja rendah:
+>    begitu HSTS terkirim, browser menolak membuka domain lewat HTTP sampai
+>    masa berlakunya habis — termasuk saat sertifikatnya bermasalah.
 
 ---
 
@@ -200,6 +239,7 @@ docker compose down
 | `lib/fetch-json.ts` | Pembungkus fetch panel admin yang memunculkan pesan galat server |
 | `lib/sanitize.ts` | Pembersih HTML dari editor sebelum dirender ke pengunjung |
 | `docker/entrypoint.sh` | Migrate + seed + start server |
+| `deploy/` | Skrip server: firewall, TLS/Certbot, backup & restore |
 
 > **Catatan:** Redis sudah dihapus dari stack. Cache dan rate limiting berjalan
 > in-memory di dalam proses `app` (lihat `lib/cache.ts`) — cukup untuk
