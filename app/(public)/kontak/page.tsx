@@ -2,6 +2,7 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { getSiteSettings } from "@/lib/get-site-settings";
 import { ContactForm } from "./contact-form";
+import { LocationMap } from "@/components/public/location-map";
 import { MapPin, Phone, Mail, Clock, Instagram, Youtube } from "lucide-react";
 
 // Informasi kontak dibaca dari database setiap request, jadi perubahan dari
@@ -101,15 +102,15 @@ export default async function ContactPage() {
             )}
           </Card>
 
-          <Card className="space-y-2 border border-slate-200 bg-white p-4 text-center">
-            <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-lg border bg-slate-100">
-              <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-70" />
-              <div className="relative z-10 flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-md backdrop-blur-sm">
-                <MapPin className="h-7 w-7 text-[#0b64b4]" />
-                <span className="text-xs font-bold text-[#003366]">{s.contact_map_title}</span>
-                <span className="text-[10px] text-slate-500">{s.contact_map_subtitle}</span>
-              </div>
-            </div>
+          <Card className="border border-slate-200 bg-white p-3">
+            <LocationMap
+              latitude={s.contact_map_lat}
+              longitude={s.contact_map_lng}
+              title={s.contact_map_title}
+              subtitle={s.contact_map_subtitle}
+              mapUrl={s.contact_map_url}
+              address={s.contact_address}
+            />
           </Card>
         </div>
       </div>

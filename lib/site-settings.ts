@@ -36,6 +36,13 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   contact_hours: "Senin – Jumat: 08:00 – 17:00 WIB",
   contact_map_title: "UC Centers Headquarters",
   contact_map_subtitle: "Surabaya, Indonesia",
+  // Titik peta di halaman Kontak. Nilai bawaan menunjuk kawasan CitraLand
+  // Surabaya dan HANYA PERKIRAAN — ganti dengan koordinat gedung yang tepat
+  // lewat panel admin.
+  contact_map_lat: "-7.2839",
+  contact_map_lng: "112.6318",
+  // Kosongkan untuk memakai tautan Google Maps yang dibentuk dari koordinat.
+  contact_map_url: "",
 
   // ── Media sosial ──────────────────────────────────────────────────────────
   // Kosongkan salah satu untuk menyembunyikan ikonnya dari situs publik.
@@ -99,6 +106,24 @@ export const SETTING_SECTIONS: {
       { key: "contact_hours", label: "Jam Operasional", wide: true },
       { key: "contact_map_title", label: "Judul pada Kartu Peta" },
       { key: "contact_map_subtitle", label: "Keterangan pada Kartu Peta" },
+      {
+        key: "contact_map_lat",
+        label: "Titik Peta — Lintang (latitude)",
+        hint: "Di Google Maps: klik kanan pada lokasi, lalu klik angka yang muncul untuk menyalinnya. Angka PERTAMA.",
+      },
+      {
+        key: "contact_map_lng",
+        label: "Titik Peta — Bujur (longitude)",
+        hint: "Angka KEDUA dari hasil klik kanan tadi.",
+      },
+      {
+        key: "contact_map_url",
+        label: "Tautan Google Maps (opsional)",
+        type: "url",
+        wide: true,
+        placeholder: "https://maps.app.goo.gl/...",
+        hint: "Kosongkan untuk memakai tautan yang dibentuk otomatis dari koordinat di atas.",
+      },
     ],
   },
   {
