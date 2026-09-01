@@ -104,6 +104,7 @@ export default async function ContactPage() {
 
           <Card className="border border-slate-200 bg-white p-3">
             <LocationMap
+              embed={s.contact_map_embed}
               latitude={s.contact_map_lat}
               longitude={s.contact_map_lng}
               title={s.contact_map_title}

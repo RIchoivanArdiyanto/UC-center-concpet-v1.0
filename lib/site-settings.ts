@@ -43,6 +43,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   contact_map_lng: "112.6318",
   // Kosongkan untuk memakai tautan Google Maps yang dibentuk dari koordinat.
   contact_map_url: "",
+  // Kode sematan dari Google Maps ("Share → Embed a map"). Bila diisi, inilah
+  // yang tampil; koordinat di atas hanya jadi cadangan.
+  contact_map_embed: "",
 
   // ── Media sosial ──────────────────────────────────────────────────────────
   // Kosongkan salah satu untuk menyembunyikan ikonnya dari situs publik.
@@ -107,9 +110,21 @@ export const SETTING_SECTIONS: {
       { key: "contact_map_title", label: "Judul pada Kartu Peta" },
       { key: "contact_map_subtitle", label: "Keterangan pada Kartu Peta" },
       {
+        key: "contact_map_embed",
+        label: "Sematan Google Maps",
+        type: "textarea",
+        wide: true,
+        placeholder: '<iframe src="https://www.google.com/maps/embed?pb=..." ...></iframe>',
+        hint:
+          "Cara termudah: buka Google Maps → cari lokasi → tombol Bagikan → tab " +
+          "'Sematkan peta' → Salin HTML, lalu tempel di sini. Boleh seluruh kode " +
+          "<iframe>. Bila diisi, peta Google inilah yang tampil lengkap dengan " +
+          "tombol rute dan 'Open in Maps' miliknya sendiri.",
+      },
+      {
         key: "contact_map_lat",
         label: "Titik Peta — Lintang (latitude)",
-        hint: "Di Google Maps: klik kanan pada lokasi, lalu klik angka yang muncul untuk menyalinnya. Angka PERTAMA.",
+        hint: "Cadangan bila kolom sematan di atas dikosongkan. Di Google Maps: klik kanan pada lokasi, lalu klik angka yang muncul. Angka PERTAMA.",
       },
       {
         key: "contact_map_lng",
