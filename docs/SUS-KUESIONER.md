@@ -121,4 +121,6 @@ heuristik Nielsen, yang bisa dilakukan tanpa responden dan berguna untuk
 menutup masalah yang jelas sebelum pengujian pengguna dimulai — supaya
 responden tidak menghabiskan waktu pada masalah yang sudah diketahui.
 
-Hasilnya ada di [`QA-REPORT.md`](QA-REPORT.md) bagian **Evaluasi Usability**.
+Hasil evaluasi heuristiknya tercatat pada pesan commit QA (`c418d74`), dan
+dapat diulang kapan saja lewat `npm run test:qa`, `test:security`, dan
+`test:perf`.

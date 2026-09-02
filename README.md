@@ -239,8 +239,9 @@ npm run test:security
 npm run test:perf
 ```
 
-Hasil lengkap dan daftar temuan ada di [`docs/QA-REPORT.md`](docs/QA-REPORT.md).
-Instrumen SUS siap pakai ada di [`docs/SUS-KUESIONER.md`](docs/SUS-KUESIONER.md).
+Ketiganya keluar dengan kode 1 bila ada kegagalan, jadi bisa langsung dipakai
+di CI. Instrumen SUS siap pakai ada di
+[`docs/SUS-KUESIONER.md`](docs/SUS-KUESIONER.md).
 
 > Suite keamanan sengaja memicu rate limit login. Setelah dijalankan, login
 > terblokir ±15 menit — buka kembali dengan `docker compose restart app`.
