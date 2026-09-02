@@ -1,8 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // WAJIB: Dockerfile menyalin .next/standalone — tanpa ini folder tsb tidak
-  // dibuat dan `docker compose build` gagal di stage runner.
-  output: "standalone",
+  // Standalone dibutuhkan Dockerfile (menyalin .next/standalone); tanpa itu
+  // `docker compose build` gagal di stage runner.
+  //
+  // Di Vercel mode ini TIDAK dipakai — Vercel punya format keluarannya sendiri
+  // dan `standalone` justru membuat build-nya bermasalah. Variabel VERCEL
+  // otomatis diisi oleh platformnya saat build.
+  output: process.env.VERCEL ? undefined : "standalone",
   reactStrictMode: true,
 
   // Versi & teknologi server tidak perlu diumumkan ke setiap pengunjung.

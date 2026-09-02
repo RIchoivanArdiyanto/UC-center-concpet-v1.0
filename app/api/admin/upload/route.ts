@@ -69,8 +69,26 @@ export async function POST(req: Request) {
     const storedName = buildStoredName(randomBytes(16).toString("hex"), spec.ext);
 
     const targetDir = path.join(UPLOAD_ROOT, relativeDir);
-    await mkdir(targetDir, { recursive: true });
-    await writeFile(path.join(targetDir, storedName), bytes, { mode: 0o644 });
+
+    try {
+      await mkdir(targetDir, { recursive: true });
+      await writeFile(path.join(targetDir, storedName), bytes, { mode: 0o644 });
+    } catch (err) {
+      // Platform serverless (Vercel, Netlify, Lambda) memberi filesystem
+      // read-only. Tanpa penanganan ini, unggahan di sana gagal sebagai 500
+      // generik dan admin tidak tahu penyebabnya. Docker/VPS tidak terpengaruh
+      // karena /app/uploads adalah volume yang bisa ditulis.
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === "EROFS" || code === "EACCES" || code === "EPERM") {
+        throw new ApiError(
+          503,
+          "Server ini tidak mengizinkan penyimpanan berkas (filesystem read-only). " +
+            "Gunakan tombol \"Pakai URL\" pada kolom gambar, atau jalankan aplikasi " +
+            "di server dengan volume penyimpanan."
+        );
+      }
+      throw err;
+    }
 
     return NextResponse.json(
       {

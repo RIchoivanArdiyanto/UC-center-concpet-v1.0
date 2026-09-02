@@ -9,6 +9,10 @@ RUN apk add --no-cache libc6-compat openssl
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
+# Schema Prisma ikut disalin SEBELUM npm ci: script postinstall menjalankan
+# `prisma generate` (dibutuhkan Vercel yang meng-cache node_modules), dan
+# perintah itu gagal bila schema-nya belum ada.
+COPY prisma ./prisma
 RUN npm ci
 
 # ── Builder ─────────────────────────────────────────────────────────────────
