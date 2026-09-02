@@ -1,0 +1,20 @@
+# Berkas yang TIDAK boleh ikut terunggah ke Vercel.
+#
+# .env memuat password MySQL dan NEXTAUTH_SECRET. Vercel mengambil konfigurasi
+# dari Environment Variables di dashboard, bukan dari file ini — mengunggahnya
+# hanya menyebarkan rahasia tanpa manfaat apa pun.
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+backups
+uploads
+
+# Berkas khusus deployment Docker, tidak dipakai Vercel.
+docker-compose*.yml
+Dockerfile
+docker/
+nginx/
+deploy/
