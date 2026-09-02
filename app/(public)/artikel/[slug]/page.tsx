@@ -80,7 +80,7 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 font-medium text-slate-700">
               <User className="w-4 h-4 text-[#0b64b4]" />
-              {article.author?.name || "Tim Pakar UC Centers"}
+              {article.author?.name || "Tim UC Centers"}
             </span>
             <span className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-slate-400" />

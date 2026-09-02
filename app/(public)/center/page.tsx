@@ -188,7 +188,7 @@ export default async function CenterDirectoryPage({
                   </div>
                   <div className="text-right text-[11px] text-slate-400 font-medium">
                     <div>{center._count?.projects || 0} Proyek</div>
-                    <div>{center._count?.team || 0} Tim Pakar</div>
+                    <div>{center._count?.team || 0} Pengurus</div>
                   </div>
                 </div>
 

@@ -35,7 +35,7 @@ export default function AdminCenterEditPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   // Tim pakar. Sebelumnya hanya bisa diisi lewat seed — tidak ada UI-nya sama
-  // sekali padahal blok "Tim Pakar" tampil di halaman center publik.
+  // sekali padahal blok "Pengurus Center" tampil di halaman center publik.
   const [team, setTeam] = useState<TeamRow[]>([]);
 
   // Layanan & kepakaran. Sama seperti tim pakar, blok ini tampil di halaman
@@ -221,25 +221,25 @@ export default function AdminCenterEditPage() {
             <TiptapEditor content={aboutContent} onChange={setAboutContent} />
           </Card>
 
-          {/* Tim Pakar */}
+          {/* Pengurus Center */}
           <Card className="p-6">
             <RepeatableList<TeamRow>
-              title="Tim Pakar"
+              title="Pengurus Center"
               icon={Users}
-              itemNoun="Anggota"
-              addLabel="Tambah Anggota"
+              itemNoun="Pengurus"
+              addLabel="Tambah Pengurus"
               items={team}
               onChange={setTeam}
               createItem={() => ({ name: "", role: "", email: "", photoUrl: "" })}
               description={
                 <>
-                  Tampil di kolom Tim Pakar halaman center. Urutan di sini menentukan
+                  Tampil di kolom Pengurus Center halaman center. Urutan di sini menentukan
                   urutan tampil. Email opsional &mdash; bila diisi, alamatnya tampil di
                   halaman publik saat nama diklik, jadi isi hanya alamat yang memang
                   boleh dipublikasikan.
                 </>
               }
-              emptyHint="Belum ada anggota tim. Blok Tim Pakar tidak akan tampil di halaman publik."
+              emptyHint="Belum ada pengurus. Blok Pengurus Center tidak akan tampil di halaman publik."
               renderFields={(member, index) => (
                 <>
                   <div>

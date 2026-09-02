@@ -165,7 +165,7 @@ export default async function CenterDetailPage({ params }: { params: { slug: str
               <Card className="p-6 space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                   <Users className="w-5 h-5 text-[#0b64b4]" />
-                  <h3 className="font-bold text-base text-[#111c2d]">Tim Pakar</h3>
+                  <h3 className="font-bold text-base text-[#111c2d]">Pengurus Center</h3>
                 </div>
                 {/* Klik nama anggota untuk membuka emailnya beserta tombol salin. */}
                 <TeamList members={center.team} />

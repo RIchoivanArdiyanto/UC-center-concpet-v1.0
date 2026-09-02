@@ -14,7 +14,7 @@ type TeamMember = {
 };
 
 /**
- * Daftar Tim Pakar di halaman center.
+ * Daftar Pengurus Center di halaman center.
  *
  * Anggota yang punya email bisa diklik untuk membuka alamatnya beserta tombol
  * salin, sehingga daftar tetap ringkas saat anggotanya banyak.
@@ -58,7 +58,7 @@ export function TeamList({ members }: { members: TeamMember[] }) {
         const hasEmail = Boolean(member.email);
 
         return (
-          <li key={member.id} className="py-3 first:pt-0 last:pb-0">
+          <li key={member.id} className="py-3.5 first:pt-0 last:pb-0">
             <button
               type="button"
               onClick={() => hasEmail && setOpenId(isOpen ? null : member.id)}
@@ -72,13 +72,15 @@ export function TeamList({ members }: { members: TeamMember[] }) {
                 "-mx-2 px-2 py-1.5"
               )}
             >
-              <span className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-50 text-sm font-bold text-[#003366]">
+              {/* 64px, sebelumnya 40px — pada 40px wajah orang praktis tidak
+                  terlihat, padahal justru itu isi utama blok ini. */}
+              <span className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-blue-50 text-lg font-bold text-[#003366]">
                 {member.photoUrl ? (
                   <Image
                     src={member.photoUrl}
                     alt=""
                     fill
-                    sizes="40px"
+                    sizes="64px"
                     className="object-cover"
                   />
                 ) : (
@@ -87,10 +89,10 @@ export function TeamList({ members }: { members: TeamMember[] }) {
               </span>
 
               <span className="min-w-0 flex-grow">
-                <span className="block truncate text-sm font-bold text-[#111c2d]">
+                <span className="block truncate text-[15px] font-bold text-[#111c2d]">
                   {member.name}
                 </span>
-                <span className="block truncate text-xs text-slate-500">{member.role}</span>
+                <span className="block truncate text-[13px] text-slate-500">{member.role}</span>
               </span>
 
               {hasEmail && (
@@ -104,7 +106,7 @@ export function TeamList({ members }: { members: TeamMember[] }) {
             </button>
 
             {hasEmail && isOpen && (
-              <div className="ml-[52px] mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+              <div className="ml-[76px] mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
                 <Mail className="h-3.5 w-3.5 flex-shrink-0 text-[#0b64b4]" />
                 <a
                   href={`mailto:${member.email}`}

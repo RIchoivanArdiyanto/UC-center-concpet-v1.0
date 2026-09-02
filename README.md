@@ -63,7 +63,7 @@ Login menerima username maupun email.
 
 Menu **Sistem → Users & Hak Akses** di panel admin:
 
-Form edit center juga punya blok **Tim Pakar** dan **Layanan & Kepakaran
+Form edit center juga punya blok **Pengurus Center** dan **Layanan & Kepakaran
 Utama** — keduanya tampil di halaman center publik dan bisa ditambah,
 diurutkan, serta dihapus dari panel.
 

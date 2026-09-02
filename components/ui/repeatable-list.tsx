@@ -23,7 +23,7 @@ interface RepeatableListProps<T> {
 /**
  * Kerangka daftar yang bisa ditambah, diurutkan, dan dihapus.
  *
- * Blok "Tim Pakar" dan "Layanan & Kepakaran" di form center memakai kerangka
+ * Blok "Pengurus Center" dan "Layanan & Kepakaran" di form center memakai kerangka
  * yang persis sama — hanya kolom isiannya yang berbeda. Disatukan di sini
  * supaya keduanya tidak menyimpang tampilan maupun perilakunya saat salah satu
  * diubah nanti.
