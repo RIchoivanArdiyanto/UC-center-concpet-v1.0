@@ -5,9 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MobileTableCard } from "@/components/ui/mobile-table-card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { errorMessage, fetchJson } from "@/lib/fetch-json";
-import { Mail, Phone, Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Mail, Phone, Trash2 } from "lucide-react";
 
 export default function AdminLeadsPage() {
   const toast = useToast();
@@ -27,6 +28,24 @@ export default function AdminLeadsPage() {
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
+
+  const [pending, setPending] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!pending) return;
+    setDeleting(true);
+    try {
+      await fetchJson(`/api/admin/leads/${pending.id}`, { method: "DELETE" });
+      toast.success("Permohonan dihapus", pending.name);
+      setPending(null);
+      fetchLeads();
+    } catch (err) {
+      toast.error("Gagal menghapus", errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
@@ -114,15 +133,27 @@ export default function AdminLeadsPage() {
                         {new Date(lead.createdAt).toLocaleDateString("id-ID")}
                       </td>
                       <td className="p-4 text-right">
-                        <select
-                          value={lead.status}
-                          onChange={(e) => handleUpdateStatus(lead.id, e.target.value)}
-                          className="px-2 py-1 text-xs border border-slate-300 rounded bg-white font-medium"
-                        >
-                          <option value="NEW">NEW</option>
-                          <option value="CONTACTED">CONTACTED</option>
-                          <option value="CLOSED">CLOSED</option>
-                        </select>
+                        <div className="flex items-center justify-end gap-2">
+                          <select
+                            value={lead.status}
+                            onChange={(e) => handleUpdateStatus(lead.id, e.target.value)}
+                            aria-label={`Ubah status permohonan ${lead.name}`}
+                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium"
+                          >
+                            <option value="NEW">NEW</option>
+                            <option value="CONTACTED">CONTACTED</option>
+                            <option value="CLOSED">CLOSED</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setPending({ id: lead.id, name: lead.name })}
+                            title="Hapus permohonan"
+                            aria-label={`Hapus permohonan dari ${lead.name}`}
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -164,6 +195,21 @@ export default function AdminLeadsPage() {
           </>
         )}
       </Card>
+
+      <ConfirmDialog
+        isOpen={pending !== null}
+        loading={deleting}
+        title="Hapus permohonan ini?"
+        description={
+          <>
+            Permohonan dari <strong className="text-[#111c2d]">{pending?.name}</strong> akan
+            dihapus permanen. Gunakan status <strong>CLOSED</strong> bila hanya ingin
+            menandainya selesai tanpa menghilangkan riwayatnya.
+          </>
+        }
+        onCancel={() => setPending(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

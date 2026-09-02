@@ -28,7 +28,7 @@ Sudah diuji dengan database benar-benar tidak ada:
 
 Satu tambahan yang disarankan: isi **`NEXTAUTH_SECRET`** (hasil
 `openssl rand -base64 32`). Tanpa itu halaman publik tetap aman — middleware
-hanya menjaga `/admin/*` — tetapi membuka `/admin` akan error. Dengan env itu
+hanya menjaga `/panel/*` — tetapi membuka `/admin` akan error. Dengan env itu
 terisi, halaman login tetap tampil rapi walaupun tidak bisa dipakai masuk.
 
 ---

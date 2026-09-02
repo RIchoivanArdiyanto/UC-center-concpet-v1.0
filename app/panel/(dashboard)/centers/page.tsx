@@ -80,7 +80,7 @@ export default function AdminCentersPage() {
           <h1 className="text-2xl font-extrabold text-[#003366]">Kelola Center of Excellence</h1>
           <p className="text-xs text-slate-500 mt-0.5">Daftar pusat studi, kepakaran, dan status publikasi.</p>
         </div>
-        <Link href="/admin/centers/new">
+        <Link href="/panel/centers/new">
           <Button size="md">
             <Plus className="w-4 h-4 mr-2" />
             <span>Tambah Center Baru</span>
@@ -95,7 +95,7 @@ export default function AdminCentersPage() {
         ) : centers.length === 0 ? (
           <div className="p-12 text-center text-slate-500 text-sm space-y-3">
             <p>Belum ada data Center terdaftar.</p>
-            <Link href="/admin/centers/new">
+            <Link href="/panel/centers/new">
               <Button variant="outline" size="sm">Tambah Center Sekarang</Button>
             </Link>
           </div>
@@ -161,7 +161,7 @@ export default function AdminCentersPage() {
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/centers/${center.id}`}>
+                          <Link href={`/panel/centers/${center.id}`}>
                             <button className="p-1.5 text-slate-500 hover:text-[#0b64b4] rounded hover:bg-slate-100">
                               <Edit className="w-4 h-4" />
                             </button>
@@ -203,7 +203,7 @@ export default function AdminCentersPage() {
                   ]}
                   actions={
                     <>
-                      <Link href={`/admin/centers/${center.id}`}>
+                      <Link href={`/panel/centers/${center.id}`}>
                         <Button variant="outline" size="sm">
                           <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                         </Button>

@@ -9,7 +9,7 @@ import { Lock, User, AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") || "/panel/dashboard";
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -45,7 +45,7 @@ function LoginForm() {
       // parameter callbackUrl tidak bisa dipakai mengarahkan ke situs lain.
       const safeTarget = callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
         ? callbackUrl
-        : "/admin/dashboard";
+        : "/panel/dashboard";
       window.location.href = safeTarget;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan saat autentikasi.");

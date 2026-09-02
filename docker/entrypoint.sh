@@ -1,7 +1,7 @@
 #!/bin/sh
 # ---------------------------------------------------------------------------
 #  Startup kontainer app:
-#    1. migrate deploy  -> bikin/menyamakan skema PostgreSQL (idempoten)
+#    1. migrate deploy  -> bikin/menyamakan skema MySQL (idempoten)
 #    2. seed            -> isi admin + data awal (idempoten, aman diulang)
 #    3. exec CMD        -> jalankan server Next.js sebagai PID 1
 # ---------------------------------------------------------------------------

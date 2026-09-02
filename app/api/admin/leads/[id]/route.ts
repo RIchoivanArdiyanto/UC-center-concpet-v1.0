@@ -58,3 +58,36 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     return handleApiError("Admin Lead PUT", error);
   }
 }
+
+/**
+ * Hapus lead.
+ *
+ * Sebelumnya lead hanya bisa dibuat (lewat form publik) dan diubah statusnya —
+ * tidak ada cara menghapusnya sama sekali. Karena formulirnya terbuka ke
+ * internet, kiriman spam akan menumpuk permanen dan lama-lama menenggelamkan
+ * permohonan yang sungguhan.
+ */
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const user = await requireAdmin(PERMISSIONS.LEADS_MANAGE);
+
+    const existing = await prisma.lead.findUnique({ where: { id: params.id } });
+    if (!existing) throw new ApiError(404, "Lead tidak ditemukan.");
+    // Center admin hanya boleh menghapus lead milik centernya.
+    assertCenterAccess(user, existing.centerId);
+
+    await prisma.lead.delete({ where: { id: params.id } });
+
+    await logActivity({
+      actorId: user.id,
+      action: "DELETE",
+      entityType: "Lead",
+      entityId: params.id,
+      metadata: { name: existing.name, email: existing.email },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return handleApiError("Admin Lead DELETE", error);
+  }
+}

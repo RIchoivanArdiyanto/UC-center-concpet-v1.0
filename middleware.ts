@@ -5,7 +5,7 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   // Protect /admin routes (except /admin/login)
-  if (path.startsWith("/admin") && path !== "/admin/login") {
+  if (path.startsWith("/panel") && path !== "/panel/login") {
     // Secret dibaca dari env saja — nilai cadangan hardcoded di sini akan
     // membuat middleware menerima token yang ditandatangani rahasia publik.
     const token = await getToken({
@@ -18,7 +18,7 @@ export async function middleware(req: NextRequest) {
     });
 
     if (!token) {
-      const loginUrl = new URL("/admin/login", req.url);
+      const loginUrl = new URL("/panel/login", req.url);
       loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
       return NextResponse.redirect(loginUrl);
     }
@@ -28,5 +28,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/panel/:path*"],
 };

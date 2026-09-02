@@ -11,7 +11,10 @@
     "prisma:migrate": "prisma migrate deploy",
     "seed": "ts-node prisma/seed.ts",
     "postinstall": "prisma generate",
-    "vercel-build": "node scripts/vercel-build.mjs"
+    "vercel-build": "node scripts/vercel-build.mjs",
+    "test:qa": "node tests/qa-suite.mjs",
+    "test:security": "node tests/security-suite.mjs",
+    "test:perf": "node tests/perf-suite.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -23,7 +26,6 @@
     "@tiptap/pm": "^2.6.6",
     "@tiptap/react": "^2.6.6",
     "@tiptap/starter-kit": "^2.6.6",
-    "@types/sanitize-html": "^2.16.1",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "lucide-react": "^0.436.0",
@@ -31,15 +33,17 @@
     "next-auth": "^4.24.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sanitize-html": "^2.17.7",
-    "tailwind-merge": "^2.5.2"
+    "sanitize-html": "^2.17.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.16.1",
     "@types/react": "^18.3.4",
     "@types/react-dom": "^18.3.0",
+    "@types/sanitize-html": "^2.16.1",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
     "postcss": "^8.4.41",
     "prisma": "^5.19.0",
     "tailwindcss": "^3.4.10",

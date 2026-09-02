@@ -57,7 +57,7 @@ const nextConfig = {
       {
         // Halaman admin tidak boleh diindeks mesin pencari maupun disimpan
         // cache proxy bersama.
-        source: "/admin/:path*",
+        source: "/panel/:path*",
         headers: [
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
           { key: "Cache-Control", value: "no-store" },

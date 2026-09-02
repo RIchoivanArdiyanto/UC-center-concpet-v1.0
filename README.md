@@ -25,7 +25,7 @@ migrasi dijalankan, dan data awal di-seed otomatis.
 | Layanan | Alamat |
 |---|---|
 | Website publik | <http://localhost:8090> |
-| Panel admin | <http://localhost:8090/admin/login> |
+| Panel admin | <http://localhost:8090/panel/login> |
 | Health check | <http://localhost:8090/api/health> |
 | MySQL (DBeaver/Workbench) | `localhost:3310` — db `uccenters`, user `uccenters`, password `uccenters` |
 | App langsung (bypass Nginx) | <http://localhost:3100> |
@@ -158,7 +158,7 @@ Sebelum menjalankannya, di `.env` server:
 | **Hak akses** | Dicek di server pada setiap route (`requireAdmin(PERMISSION)`), bukan hanya dengan menyembunyikan menu |
 | **Pencabutan akses** | Token sesi disegarkan dari database tiap request; menonaktifkan user langsung memutus sesinya |
 | **Unggahan berkas** | Whitelist tipe + verifikasi magic number, batas ukuran, nama dibuat server, disajikan dengan `nosniff` dan CSP sandbox |
-| **Header** | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`; `X-Powered-By` dimatikan; `/admin/*` diberi `noindex` dan `no-store` |
+| **Header** | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`; `X-Powered-By` dimatikan; `/panel/*` diberi `noindex` dan `no-store` |
 | **Kontainer** | Proses berjalan sebagai user non-root, `no-new-privileges`, dan filesystem read-only di produksi |
 
 ### Penyiapan server: TLS, firewall, backup
@@ -220,6 +220,30 @@ docker compose up -d --build app
 ```bash
 docker compose down
 ```
+
+---
+
+## 🧪 Pengujian
+
+Tiga suite berdiri sendiri, semuanya membersihkan data ujinya sendiri:
+
+```bash
+npm run test:qa
+```
+
+```bash
+npm run test:security
+```
+
+```bash
+npm run test:perf
+```
+
+Hasil lengkap dan daftar temuan ada di [`docs/QA-REPORT.md`](docs/QA-REPORT.md).
+Instrumen SUS siap pakai ada di [`docs/SUS-KUESIONER.md`](docs/SUS-KUESIONER.md).
+
+> Suite keamanan sengaja memicu rate limit login. Setelah dijalankan, login
+> terblokir ±15 menit — buka kembali dengan `docker compose restart app`.
 
 ---
 

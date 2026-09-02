@@ -82,28 +82,28 @@ export default async function AdminDashboardPage() {
       value: totalCenters,
       icon: Building2,
       tone: "bg-blue-50 text-[#0b64b4]",
-      href: "/admin/centers",
+      href: "/panel/centers",
     },
     {
       label: "Proyek Portfolio",
       value: totalProjects,
       icon: Briefcase,
       tone: "bg-indigo-50 text-[#233e95]",
-      href: "/admin/portfolio",
+      href: "/panel/portfolio",
     },
     {
       label: "Artikel Terbit",
       value: publishedArticles,
       icon: FileText,
       tone: "bg-violet-50 text-violet-600",
-      href: "/admin/articles",
+      href: "/panel/articles",
     },
     {
       label: "Lead Baru",
       value: newLeads,
       icon: Users,
       tone: "bg-amber-50 text-amber-600",
-      href: "/admin/leads",
+      href: "/panel/leads",
       // Satu-satunya angka yang menuntut tindakan, jadi sengaja ditonjolkan.
       highlight: newLeads > 0,
     },
@@ -169,7 +169,7 @@ export default async function AdminDashboardPage() {
           <CardHeader className="flex items-center justify-between">
             <div className="text-base font-bold text-[#003366]">Permohonan Terbaru</div>
             <Link
-              href="/admin/leads"
+              href="/panel/leads"
               className="flex items-center gap-1 text-xs font-semibold text-[#0b64b4] hover:underline"
             >
               Lihat semua
@@ -264,7 +264,7 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <Link
-              href="/admin/activity"
+              href="/panel/activity"
               className="flex items-center gap-1 text-xs font-semibold text-[#0b64b4] hover:underline"
             >
               Semua log

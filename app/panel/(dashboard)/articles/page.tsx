@@ -55,7 +55,7 @@ export default function AdminArticlesPage() {
           <h1 className="text-2xl font-extrabold text-[#003366]">Kelola Artikel & Berita</h1>
           <p className="text-xs text-slate-500 mt-0.5">Tulis opini, rilis riset, dan publikasi wawasan terdepan.</p>
         </div>
-        <Link href="/admin/articles/new">
+        <Link href="/panel/articles/new">
           <Button size="md">
             <Plus className="w-4 h-4 mr-2" />
             <span>Tulis Artikel Baru</span>
@@ -69,7 +69,7 @@ export default function AdminArticlesPage() {
         ) : articles.length === 0 ? (
           <div className="p-12 text-center text-slate-500 text-sm space-y-3">
             <p>Belum ada artikel terbit.</p>
-            <Link href="/admin/articles/new">
+            <Link href="/panel/articles/new">
               <Button variant="outline" size="sm">Tulis Artikel Pertama</Button>
             </Link>
           </div>
@@ -122,7 +122,7 @@ export default function AdminArticlesPage() {
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/articles/${a.id}`}>
+                          <Link href={`/panel/articles/${a.id}`}>
                             <button className="p-1.5 text-slate-500 hover:text-[#0b64b4] rounded hover:bg-slate-100">
                               <Edit className="w-4 h-4" />
                             </button>
@@ -155,7 +155,7 @@ export default function AdminArticlesPage() {
                   ]}
                   actions={
                     <>
-                      <Link href={`/admin/articles/${a.id}`}>
+                      <Link href={`/panel/articles/${a.id}`}>
                         <Button variant="outline" size="sm">
                           <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                         </Button>

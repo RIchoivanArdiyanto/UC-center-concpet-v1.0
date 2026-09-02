@@ -79,7 +79,7 @@ export default function AdminPortfolioPage() {
           <h1 className="text-2xl font-extrabold text-[#003366]">Kelola Portfolio Proyek</h1>
           <p className="text-xs text-slate-500 mt-0.5">Kelola dokumentasi proyek realisasi & sorotan Beranda.</p>
         </div>
-        <Link href="/admin/portfolio/new">
+        <Link href="/panel/portfolio/new">
           <Button size="md">
             <Plus className="w-4 h-4 mr-2" />
             <span>Tambah Proyek Baru</span>
@@ -93,7 +93,7 @@ export default function AdminPortfolioPage() {
         ) : projects.length === 0 ? (
           <div className="p-12 text-center text-slate-500 text-sm space-y-3">
             <p>Belum ada proyek terdaftar.</p>
-            <Link href="/admin/portfolio/new">
+            <Link href="/panel/portfolio/new">
               <Button variant="outline" size="sm">Tambah Proyek Pertama</Button>
             </Link>
           </div>
@@ -152,7 +152,7 @@ export default function AdminPortfolioPage() {
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/portfolio/${p.id}`}>
+                          <Link href={`/panel/portfolio/${p.id}`}>
                             <button className="p-1.5 text-slate-500 hover:text-[#0b64b4] rounded hover:bg-slate-100">
                               <Edit className="w-4 h-4" />
                             </button>
@@ -191,7 +191,7 @@ export default function AdminPortfolioPage() {
                   ]}
                   actions={
                     <>
-                      <Link href={`/admin/portfolio/${p.id}`}>
+                      <Link href={`/panel/portfolio/${p.id}`}>
                         <Button variant="outline" size="sm">
                           <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                         </Button>

@@ -39,36 +39,36 @@ const NAV: NavSection[] = [
   {
     section: "Ringkasan",
     items: [
-      { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, permission: PERMISSIONS.DASHBOARD_VIEW },
+      { name: "Dashboard", href: "/panel/dashboard", icon: LayoutDashboard, permission: PERMISSIONS.DASHBOARD_VIEW },
     ],
   },
   {
     section: "Konten",
     items: [
-      { name: "Kelola Center", href: "/admin/centers", icon: Building2, permission: PERMISSIONS.CENTERS_VIEW },
-      { name: "Kelola Portfolio", href: "/admin/portfolio", icon: Briefcase, permission: PERMISSIONS.PORTFOLIO_VIEW },
-      { name: "Kelola Artikel", href: "/admin/articles", icon: FileText, permission: PERMISSIONS.ARTICLES_VIEW },
-      { name: "Konten Situs", href: "/admin/homepage", icon: Home, permission: PERMISSIONS.HOMEPAGE_MANAGE },
+      { name: "Kelola Center", href: "/panel/centers", icon: Building2, permission: PERMISSIONS.CENTERS_VIEW },
+      { name: "Kelola Portfolio", href: "/panel/portfolio", icon: Briefcase, permission: PERMISSIONS.PORTFOLIO_VIEW },
+      { name: "Kelola Artikel", href: "/panel/articles", icon: FileText, permission: PERMISSIONS.ARTICLES_VIEW },
+      { name: "Konten Situs", href: "/panel/homepage", icon: Home, permission: PERMISSIONS.HOMEPAGE_MANAGE },
     ],
   },
   {
     section: "Master Data",
     items: [
-      { name: "Taksonomi Expertise", href: "/admin/expertise", icon: Tags, permission: PERMISSIONS.EXPERTISE_MANAGE },
-      { name: "Mitra Client", href: "/admin/clients", icon: Building, permission: PERMISSIONS.CLIENTS_MANAGE },
+      { name: "Taksonomi Expertise", href: "/panel/expertise", icon: Tags, permission: PERMISSIONS.EXPERTISE_MANAGE },
+      { name: "Mitra Client", href: "/panel/clients", icon: Building, permission: PERMISSIONS.CLIENTS_MANAGE },
     ],
   },
   {
     section: "Permohonan",
     items: [
-      { name: "Kelola Leads", href: "/admin/leads", icon: Users, permission: PERMISSIONS.LEADS_VIEW },
+      { name: "Kelola Leads", href: "/panel/leads", icon: Users, permission: PERMISSIONS.LEADS_VIEW },
     ],
   },
   {
     section: "Sistem",
     items: [
-      { name: "Users & Hak Akses", href: "/admin/users", icon: UserCog, permission: PERMISSIONS.USERS_MANAGE },
-      { name: "Activity Log", href: "/admin/activity", icon: History, permission: PERMISSIONS.ACTIVITY_VIEW },
+      { name: "Users & Hak Akses", href: "/panel/users", icon: UserCog, permission: PERMISSIONS.USERS_MANAGE },
+      { name: "Activity Log", href: "/panel/activity", icon: History, permission: PERMISSIONS.ACTIVITY_VIEW },
     ],
   },
 ];
@@ -93,7 +93,7 @@ export function AdminSidebar() {
     <>
       <div className="space-y-6 p-6">
         <Link
-          href="/admin/dashboard"
+          href="/panel/dashboard"
           className="flex items-center gap-3"
           onClick={() => setMobileOpen(false)}
         >

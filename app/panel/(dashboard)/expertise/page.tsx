@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MobileTableCard } from "@/components/ui/mobile-table-card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { errorMessage, fetchJson } from "@/lib/fetch-json";
 import { Plus, Tags, Trash2 } from "lucide-react";
@@ -30,6 +31,26 @@ export default function AdminExpertisePage() {
   useEffect(() => {
     fetchTags();
   }, [fetchTags]);
+
+  const [pending, setPending] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!pending) return;
+    setDeleting(true);
+    try {
+      await fetchJson(`/api/admin/expertise/${pending.id}`, { method: "DELETE" });
+      toast.success("Tag dihapus", pending.name);
+      setPending(null);
+      fetchTags();
+    } catch (err) {
+      // Server menolak bila tag masih menempel di center/proyek; pesannya
+      // menyebut jumlahnya, jadi ditampilkan apa adanya.
+      toast.error("Gagal menghapus", errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,10 +90,11 @@ export default function AdminExpertisePage() {
 
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="tag-name" className="block text-xs font-semibold text-slate-700 mb-1">
                 Nama Tag <span className="text-rose-500">*</span>
               </label>
               <input
+                id="tag-name"
                 type="text"
                 required
                 value={name}
@@ -87,12 +109,14 @@ export default function AdminExpertisePage() {
               <div className="flex items-center gap-3">
                 <input
                   type="color"
+                  aria-label="Pilih warna badge"
                   value={colorHex}
                   onChange={(e) => setColorHex(e.target.value)}
                   className="w-10 h-10 rounded border border-slate-300 cursor-pointer p-0.5"
                 />
                 <input
                   type="text"
+                  aria-label="Kode warna heksadesimal"
                   value={colorHex}
                   onChange={(e) => setColorHex(e.target.value)}
                   className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg font-mono"
@@ -127,6 +151,7 @@ export default function AdminExpertisePage() {
                       <th className="p-4">Slug</th>
                       <th className="p-4">Center Terhubung</th>
                       <th className="p-4">Proyek Terhubung</th>
+                      <th className="p-4 text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -138,6 +163,22 @@ export default function AdminExpertisePage() {
                         <td className="p-4 font-mono text-slate-500">{t.slug}</td>
                         <td className="p-4 font-bold text-[#003366]">{t._count?.centers || 0}</td>
                         <td className="p-4 font-bold text-[#003366]">{t._count?.projects || 0}</td>
+                        <td className="p-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setPending({ id: t.id, name: t.name })}
+                            disabled={(t._count?.centers || 0) + (t._count?.projects || 0) > 0}
+                            title={
+                              (t._count?.centers || 0) + (t._count?.projects || 0) > 0
+                                ? "Masih dipakai center atau proyek"
+                                : "Hapus tag"
+                            }
+                            aria-label={`Hapus tag ${t.name}`}
+                            className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -162,6 +203,20 @@ export default function AdminExpertisePage() {
           )}
         </Card>
       </div>
+
+      <ConfirmDialog
+        isOpen={pending !== null}
+        loading={deleting}
+        title="Hapus tag keahlian ini?"
+        description={
+          <>
+            <strong className="text-[#111c2d]">{pending?.name}</strong> akan hilang dari
+            deretan filter di halaman Portfolio dan Direktori Center.
+          </>
+        }
+        onCancel={() => setPending(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

@@ -93,7 +93,7 @@ export default function AdminArticleEditPage() {
 
       if (!res.ok) throw new Error("Gagal menyimpan artikel.");
 
-      router.push("/admin/articles");
+      router.push("/panel/articles");
       router.refresh();
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan.");
@@ -128,8 +128,9 @@ export default function AdminArticleEditPage() {
             <h2 className="font-bold text-base text-[#003366]">Judul & Ringkasan</h2>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Judul Artikel <span className="text-rose-500">*</span></label>
+              <label htmlFor="art-title" className="block text-xs font-semibold text-slate-700 mb-1">Judul Artikel <span className="text-rose-500">*</span></label>
               <input
+                id="art-title"
                 type="text"
                 required
                 value={title}
@@ -172,10 +173,11 @@ export default function AdminArticleEditPage() {
               <div className="p-6 space-y-4 bg-white border-t border-slate-200">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-semibold text-slate-700">SEO Meta Title</label>
+                    <label htmlFor="art-seo-title" className="text-xs font-semibold text-slate-700">SEO Meta Title</label>
                     <span className="text-[11px] text-slate-400">{seoTitle.length} / 60 Karakter</span>
                   </div>
                   <input
+                    id="art-seo-title"
                     type="text"
                     maxLength={60}
                     value={seoTitle}
@@ -241,6 +243,7 @@ export default function AdminArticleEditPage() {
                 type="text"
                 value={newAttName}
                 onChange={(e) => setNewAttName(e.target.value)}
+                aria-label="Nama dokumen lampiran"
                 placeholder="Nama Dokumen (mis. Laporan Riset.pdf)"
                 className="w-full px-3 py-1.5 text-xs border rounded-lg"
               />
@@ -248,6 +251,7 @@ export default function AdminArticleEditPage() {
                 type="url"
                 value={newAttUrl}
                 onChange={(e) => setNewAttUrl(e.target.value)}
+                aria-label="URL berkas lampiran"
                 placeholder="URL File Storage (https://...)"
                 className="w-full px-3 py-1.5 text-xs border rounded-lg"
               />

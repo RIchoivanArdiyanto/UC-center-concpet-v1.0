@@ -131,7 +131,7 @@ export default function AdminCenterEditPage() {
       await fetchJson(url, { method, body: JSON.stringify(payload) });
 
       toast.success(isNew ? "Center dibuat" : "Perubahan tersimpan", name);
-      router.push("/admin/centers");
+      router.push("/panel/centers");
       router.refresh();
     } catch (err) {
       // Pesan asli dari server ditampilkan (mis. "Jabatan X wajib diisi"),
@@ -182,10 +182,11 @@ export default function AdminCenterEditPage() {
             <h2 className="font-bold text-base text-[#003366]">Informasi Dasar Center</h2>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="ctr-name" className="block text-xs font-semibold text-slate-700 mb-1">
                 Nama Center <span className="text-rose-500">*</span>
               </label>
               <input
+                id="ctr-name"
                 type="text"
                 required
                 value={name}
@@ -196,8 +197,9 @@ export default function AdminCenterEditPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Tagline Singkat</label>
+              <label htmlFor="ctr-tagline" className="block text-xs font-semibold text-slate-700 mb-1">Tagline Singkat</label>
               <input
+                id="ctr-tagline"
                 type="text"
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}

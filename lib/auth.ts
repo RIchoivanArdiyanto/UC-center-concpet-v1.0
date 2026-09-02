@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/cache";
 import { parsePermissions } from "@/lib/permissions";
@@ -24,9 +25,21 @@ function resolveSecret(): string {
   return "dev-only-insecure-secret-do-not-use-in-production";
 }
 
+/**
+ * Hash bcrypt sah untuk pembanding waktu saat user tidak ditemukan.
+ * Dibuat sekali lalu dipakai ulang: biaya pembuatannya (~250 ms) hanya
+ * ditanggung pada percobaan login pertama untuk user yang tidak ada.
+ * Isinya acak dan tidak pernah cocok dengan password apa pun.
+ */
+let dummyHash: Promise<string> | null = null;
+function getDummyHash(): Promise<string> {
+  dummyHash ??= bcrypt.hash(randomBytes(24).toString("hex"), 12);
+  return dummyHash;
+}
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
-  pages: { signIn: "/admin/login" },
+  pages: { signIn: "/panel/login" },
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -60,7 +73,13 @@ export const authOptions: NextAuthOptions = {
 
         // Tetap jalankan bcrypt walau user tidak ada supaya waktu respons untuk
         // "user tidak ada" dan "password salah" tidak bisa dibedakan.
-        const hash = user?.passwordHash ?? "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidiu";
+        //
+        // Hash pembanding WAJIB hash bcrypt yang sah. Versi sebelumnya memakai
+        // string karangan ("$2a$12$invalid...") — bcryptjs menolak format salt
+        // yang rusak dan langsung balas false dalam 0 ms, sehingga justru
+        // MEMBUKA enumerasi akun: user yang ada butuh ~250 ms, yang tidak ada
+        // hanya ~5 ms. Terukur 50x selisih pada pengujian keamanan.
+        const hash = user?.passwordHash ?? (await getDummyHash());
         const isValid = await bcrypt.compare(password, hash);
         if (!user || !isValid) return null;
 

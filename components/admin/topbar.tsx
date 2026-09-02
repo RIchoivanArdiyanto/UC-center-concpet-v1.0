@@ -9,16 +9,16 @@ import { ChevronDown, LogOut, ShieldCheck, Building2 } from "lucide-react";
 // pengguna. Sebelumnya topbar hanya berisi kotak pencarian yang tidak
 // terhubung ke apa pun — kolom hias yang justru menyesatkan.
 const PAGE_TITLES: Record<string, string> = {
-  "/admin/dashboard": "Dashboard Ringkasan",
-  "/admin/centers": "Kelola Center",
-  "/admin/portfolio": "Kelola Portfolio",
-  "/admin/articles": "Kelola Artikel",
-  "/admin/homepage": "Konten Situs & Kontak",
-  "/admin/expertise": "Taksonomi Expertise",
-  "/admin/clients": "Mitra Client",
-  "/admin/leads": "Permohonan Masuk",
-  "/admin/users": "Users & Hak Akses",
-  "/admin/activity": "Activity Log",
+  "/panel/dashboard": "Dashboard Ringkasan",
+  "/panel/centers": "Kelola Center",
+  "/panel/portfolio": "Kelola Portfolio",
+  "/panel/articles": "Kelola Artikel",
+  "/panel/homepage": "Konten Situs & Kontak",
+  "/panel/expertise": "Taksonomi Expertise",
+  "/panel/clients": "Mitra Client",
+  "/panel/leads": "Permohonan Masuk",
+  "/panel/users": "Users & Hak Akses",
+  "/panel/activity": "Activity Log",
 };
 
 function titleFor(pathname: string): string {
@@ -114,7 +114,7 @@ export function AdminTopbar() {
             <button
               type="button"
               role="menuitem"
-              onClick={() => signOut({ callbackUrl: "/admin/login" })}
+              onClick={() => signOut({ callbackUrl: "/panel/login" })}
               className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
             >
               <LogOut className="h-4 w-4" />

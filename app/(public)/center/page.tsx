@@ -94,7 +94,11 @@ export default async function CenterDirectoryPage({
           {/* Search Input */}
           <div className="relative flex-grow">
             <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+            <label htmlFor="cari-center" className="sr-only">
+              Cari center, bidang kepakaran, atau kata kunci
+            </label>
             <input
+              id="cari-center"
               type="text"
               name="q"
               defaultValue={query}

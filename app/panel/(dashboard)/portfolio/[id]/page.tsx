@@ -34,7 +34,12 @@ export default function AdminPortfolioEditPage() {
       .then((res) => res.json())
       .then((data) => {
         setCenters(data);
-        if (data.length > 0 && !centerId) setCenterId(data[0].id);
+        // Nilai bawaan hanya untuk proyek BARU. Saat mengedit, kedua fetch di
+        // effect ini berjalan bersamaan: bila daftar center selesai lebih dulu
+        // dari data proyeknya, `centerId` dari closure masih "" sehingga
+        // pemeriksaan `!centerId` lolos dan center milik proyek tertimpa oleh
+        // center pertama pada daftar. Form lalu menampilkan center yang salah.
+        if (isNew && data.length > 0) setCenterId(data[0].id);
       });
 
     fetch("/api/admin/expertise")
@@ -98,7 +103,7 @@ export default function AdminPortfolioEditPage() {
 
       if (!res.ok) throw new Error("Gagal menyimpan proyek.");
 
-      router.push("/admin/portfolio");
+      router.push("/panel/portfolio");
       router.refresh();
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan.");
@@ -145,8 +150,9 @@ export default function AdminPortfolioEditPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Judul Proyek <span className="text-rose-500">*</span></label>
+              <label htmlFor="prj-title" className="block text-xs font-semibold text-slate-700 mb-1">Judul Proyek <span className="text-rose-500">*</span></label>
               <input
+                id="prj-title"
                 type="text"
                 required
                 value={title}
