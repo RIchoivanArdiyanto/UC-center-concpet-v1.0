@@ -3,9 +3,39 @@
 Panduan ini untuk **pratinjau yang bisa dibuka kapan saja**, bukan produksi
 akhir. Produksi tetap di server UC lewat Docker — lihat `README.md`.
 
+Ada dua mode. Pilih **Mode A** bila yang direview cuma tampilan.
+
 ---
 
-## Langkah
+## Mode A — Pratinjau tampilan saja (tanpa database)
+
+Ini yang paling cepat: **tidak perlu env var sama sekali.**
+
+Import repo ke Vercel → Deploy. Selesai.
+
+Halaman publik akan tampil memakai data contoh bawaan yang sudah ada di dalam
+kode (`defaultFallbackCenters`, `defaultFallbackProjects`, dan
+`DEFAULT_SITE_SETTINGS`). Semua tampilan, animasi, dan peta berjalan normal.
+
+Sudah diuji dengan database benar-benar tidak ada:
+
+| Bagian | Hasil |
+|---|---|
+| Semua halaman publik | 200, tampil lengkap dengan data contoh |
+| Animasi & peta | normal |
+| Form kontak | tombol kirim membalas pesan "Database sedang tidak dapat dihubungi" — bukan halaman error |
+| `/api/health` | jujur melaporkan `database: "down"` |
+
+Satu tambahan yang disarankan: isi **`NEXTAUTH_SECRET`** (hasil
+`openssl rand -base64 32`). Tanpa itu halaman publik tetap aman — middleware
+hanya menjaga `/admin/*` — tetapi membuka `/admin` akan error. Dengan env itu
+terisi, halaman login tetap tampil rapi walaupun tidak bisa dipakai masuk.
+
+---
+
+## Mode B — Pratinjau dengan database nyata
+
+Ikuti ini bila reviewer perlu mencoba form kontak dan panel admin.
 
 ### 1. Siapkan database MySQL yang bisa diakses internet
 
@@ -39,7 +69,9 @@ mysql://USER:PASSWORD@HOST:PORT/NAMADB?connection_limit=1&sslaccept=strict
 
 Vercel → **Add New → Project** → pilih repo `UC-center-concpet-v1.0`.
 Framework terdeteksi otomatis sebagai Next.js. **Jangan ubah** Build Command —
-`vercel-build` di `package.json` sudah menjalankan migrasi lalu build.
+`vercel-build` di `package.json` menjalankan `scripts/vercel-build.mjs`, yang
+menjalankan migrasi HANYA bila `DATABASE_URL` terisi lalu melanjutkan build.
+Itulah yang membuat Mode A di atas tidak gagal.
 
 ### 3. Isi Environment Variables
 
