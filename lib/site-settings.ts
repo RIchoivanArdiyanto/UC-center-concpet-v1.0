@@ -47,6 +47,19 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   // yang tampil; koordinat di atas hanya jadi cadangan.
   contact_map_embed: "",
 
+  // ── Footer ────────────────────────────────────────────────────────────────
+  footer_description:
+    "Ekosistem terintegrasi pusat keunggulan riset terapan, konsultasi bisnis strategis, dan pengembangan kapasitas SDM profesional.",
+  // Satu bidang per baris. Disimpan sebagai teks berbaris, bukan tabel
+  // tersendiri: daftarnya pendek, tidak punya relasi ke data lain, dan tidak
+  // perlu diurutkan/dicari — tabel baru hanya menambah kerumitan.
+  footer_expertise: [
+    "Riset & Transfer Teknologi",
+    "Strategi & Transformasi Bisnis",
+    "Kebijakan Publik & Governance",
+    "Kemitraan & Akselerasi Industri",
+  ].join("\n"),
+
   // ── Media sosial ──────────────────────────────────────────────────────────
   // Kosongkan salah satu untuk menyembunyikan ikonnya dari situs publik.
   social_instagram: "",
@@ -138,6 +151,27 @@ export const SETTING_SECTIONS: {
         wide: true,
         placeholder: "https://maps.app.goo.gl/...",
         hint: "Kosongkan untuk memakai tautan yang dibentuk otomatis dari koordinat di atas.",
+      },
+    ],
+  },
+  {
+    section: "Footer",
+    description:
+      "Teks yang tampil di bagian bawah setiap halaman publik.",
+    fields: [
+      {
+        key: "footer_description",
+        label: "Deskripsi Singkat UC Centers",
+        type: "textarea",
+        wide: true,
+        hint: "Paragraf di bawah logo pada footer.",
+      },
+      {
+        key: "footer_expertise",
+        label: "Bidang Keahlian",
+        type: "textarea",
+        wide: true,
+        hint: "Satu bidang per baris. Baris kosong diabaikan; hapus semua baris untuk menyembunyikan kolom ini dari footer.",
       },
     ],
   },

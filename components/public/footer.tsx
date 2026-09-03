@@ -10,6 +10,13 @@ import { getSiteSettings } from "@/lib/get-site-settings";
 export async function PublicFooter() {
   const s = await getSiteSettings();
 
+  // Baris kosong dibuang supaya spasi/enter berlebih di panel tidak menghasilkan
+  // butir daftar kosong di footer.
+  const expertise = (s.footer_expertise ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
   const socials = [
     { icon: Instagram, label: "Instagram", href: s.social_instagram },
     { icon: Youtube, label: "YouTube", href: s.social_youtube },
@@ -40,10 +47,9 @@ export async function PublicFooter() {
                 </span>
               </div>
             </div>
-            <p className="text-sm leading-relaxed text-slate-300">
-              Ekosistem terintegrasi pusat keunggulan riset terapan, konsultasi bisnis
-              strategis, dan pengembangan kapasitas SDM profesional.
-            </p>
+            {s.footer_description && (
+              <p className="text-sm leading-relaxed text-slate-300">{s.footer_description}</p>
+            )}
 
             {socials.length > 0 && (
               <div className="flex items-center gap-2.5 pt-1">
@@ -80,18 +86,19 @@ export async function PublicFooter() {
             </ul>
           </div>
 
-          {/* Bidang keahlian */}
-          <div className="space-y-3">
-            <h4 className="text-base font-bold uppercase tracking-wider text-white">
-              Bidang Keahlian
-            </h4>
-            <ul className="space-y-2 text-sm text-slate-300">
-              <li>Riset &amp; Transfer Teknologi</li>
-              <li>Strategi &amp; Transformasi Bisnis</li>
-              <li>Kebijakan Publik &amp; Governance</li>
-              <li>Kemitraan &amp; Akselerasi Industri</li>
-            </ul>
-          </div>
+          {/* Bidang keahlian — diisi dari panel admin, satu bidang per baris */}
+          {expertise.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-base font-bold uppercase tracking-wider text-white">
+                Bidang Keahlian
+              </h4>
+              <ul className="space-y-2 text-sm text-slate-300">
+                {expertise.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Kontak */}
           <div className="space-y-3">

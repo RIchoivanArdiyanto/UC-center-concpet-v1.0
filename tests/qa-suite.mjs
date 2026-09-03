@@ -265,6 +265,18 @@ async function main() {
   section("G. Fitur Konten Situs, Kontak & Media Sosial");
   const headline = `QA Headline ${uniq()}`;
   const ig = "https://instagram.com/qa-uccenters";
+  // Setting situs adalah state BERSAMA yang tampil di halaman publik. Nilai
+  // aslinya disimpan dulu dan dipulihkan saat pembersihan — versi sebelumnya
+  // menimpanya dan meninggalkan "(031) 000-QA" terpampang di footer situs.
+  const before = (await json("/api/admin/homepage")).body ?? {};
+  const restoreKeys = ["hero_headline", "social_instagram", "contact_phone"];
+  cleanup.push(() =>
+    req("/api/admin/homepage", {
+      method: "POST",
+      body: JSON.stringify(Object.fromEntries(restoreKeys.map((k) => [k, before[k] ?? ""]))),
+    })
+  );
+
   const save = await json("/api/admin/homepage", {
     method: "POST",
     body: JSON.stringify({
