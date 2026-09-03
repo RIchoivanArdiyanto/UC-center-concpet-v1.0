@@ -1,12 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone dibutuhkan Dockerfile (menyalin .next/standalone); tanpa itu
-  // `docker compose build` gagal di stage runner.
+  // Standalone HANYA untuk Docker: Dockerfile menyalin .next/standalone, dan
+  // tanpa mode ini `docker compose build` gagal di stage runner.
   //
-  // Di Vercel mode ini TIDAK dipakai — Vercel punya format keluarannya sendiri
-  // dan `standalone` justru membuat build-nya bermasalah. Variabel VERCEL
-  // otomatis diisi oleh platformnya saat build.
-  output: process.env.VERCEL ? undefined : "standalone",
+  // Dimatikan di dua tempat lain:
+  //  - Vercel (variabel VERCEL diisi platformnya) — punya format keluaran
+  //    sendiri, standalone membuat build-nya bermasalah.
+  //  - cPanel/Passenger (BUILD_TARGET=cpanel) — di sana aplikasi dijalankan
+  //    lewat server Next biasa, dan standalone memunculkan peringatan
+  //    `"next start" does not work with "output: standalone"`.
+  output:
+    process.env.VERCEL || process.env.BUILD_TARGET === "cpanel"
+      ? undefined
+      : "standalone",
   reactStrictMode: true,
 
   // Versi & teknologi server tidak perlu diumumkan ke setiap pengunjung.

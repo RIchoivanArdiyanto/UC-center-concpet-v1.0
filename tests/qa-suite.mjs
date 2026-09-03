@@ -79,8 +79,19 @@ async function text(path) {
 
 async function login(identifier = USER, password = PASS) {
   cookies = "";
-  const csrfRes = await req("/api/auth/csrf");
-  const { csrfToken } = await csrfRes.json();
+  let csrfRes = await req("/api/auth/csrf");
+
+  // Nginx membatasi /api/auth/ ke 10 request per menit dan membalas HTML saat
+  // ditolak. Tanpa penanganan ini seluruh suite berhenti dengan JSON.parse
+  // error — yang terjadi bila suite dijalankan beruntun.
+  if (csrfRes.status === 429) {
+    console.log(`  ${c.dim}(menunggu 65 dtk — rate limit Nginx pada /api/auth/)${c.reset}`);
+    await new Promise((r) => setTimeout(r, 65_000));
+    csrfRes = await req("/api/auth/csrf");
+  }
+
+  const { csrfToken } = await csrfRes.json().catch(() => ({ csrfToken: null }));
+  if (!csrfToken) return null;
 
   const form = new URLSearchParams({ csrfToken, identifier, password, json: "true" });
   await req("/api/auth/callback/credentials", {
@@ -307,7 +318,14 @@ async function main() {
       source: "GENERAL_CONSULTATION",
     }),
   });
-  record("lead", "Pengunjung dapat mengirim pesan", lead.status === 201, `status=${lead.status}`);
+  if (lead.status === 429) {
+    // Batas 10 kiriman/jam per IP. Bila security-suite baru saja dijalankan,
+    // kuotanya sudah habis — itu rate limit yang bekerja, bukan fitur rusak.
+    record("lead", "Pengunjung dapat mengirim pesan", false,
+      "TIDAK DAPAT DIUJI — kuota 10 lead/jam habis. Jalankan `docker compose restart app` lalu ulangi.");
+  } else {
+    record("lead", "Pengunjung dapat mengirim pesan", lead.status === 201, `status=${lead.status}`);
+  }
   record("lead", "Balasan tidak membocorkan seluruh baris",
     lead.body?.lead && !("email" in lead.body.lead) && !("message" in lead.body.lead));
 

@@ -123,7 +123,17 @@ docker compose down -v && docker compose up -d --build
 
 ---
 
-## 🔒 Deploy ke Server UC
+## 🚢 Pilihan Deployment
+
+| Target | Panduan | Catatan |
+|---|---|---|
+| **Server UC / VPS (Docker)** | bagian di bawah | Paling lengkap — Nginx, rate limit tepi, backup otomatis |
+| **cPanel tanpa Docker** | [`deploy/CPANEL.md`](deploy/CPANEL.md) | Termasuk impor SQL lewat phpMyAdmin bila tidak ada SSH |
+| **Vercel (pratinjau)** | [`VERCEL.md`](VERCEL.md) | Untuk revisi tampilan; unggah berkas tidak berfungsi di sana |
+
+---
+
+## 🔒 Deploy ke Server UC (Docker)
 
 Gunakan overlay produksi. **Perhatikan `-f` yang eksplisit** — menyebut file
 secara manual membuat Compose tidak memuat `docker-compose.override.yml`, dan
@@ -243,8 +253,11 @@ Ketiganya keluar dengan kode 1 bila ada kegagalan, jadi bisa langsung dipakai
 di CI. Instrumen SUS siap pakai ada di
 [`docs/SUS-KUESIONER.md`](docs/SUS-KUESIONER.md).
 
-> Suite keamanan sengaja memicu rate limit login. Setelah dijalankan, login
-> terblokir ±15 menit — buka kembali dengan `docker compose restart app`.
+> **Jalankan `docker compose restart app` di antara suite.** Suite keamanan
+> sengaja menghabiskan kuota rate limit (login 8/15 menit, form publik
+> 10/jam). Tanpa restart, suite berikutnya melaporkan kegagalan yang sebenarnya
+> berasal dari rate limit, bukan dari cacat aplikasi. Restart mengosongkan
+> pembatas yang disimpan di memori proses.
 
 ---
 
