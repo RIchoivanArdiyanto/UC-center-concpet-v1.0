@@ -70,10 +70,20 @@ async function login(id = USER, pw = PASS) {
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ csrfToken, identifier: id, password: pw, json: "true" }).toString(),
   });
-  return (await json("/api/auth/session")).body?.user ?? null;
+  const who = (await json("/api/auth/session")).body?.user ?? null;
+
+  // Setiap sesi admin yang berhasil disimpan sebagai cadangan untuk pembersihan
+  // di akhir. Menyimpannya di satu titik saja tidak cukup: bila login pada titik
+  // itu kebetulan sudah tertahan rate limiter, yang tersimpan justru cookie
+  // tanpa sesi dan pembersihan tetap gagal.
+  if (who && id === USER) adminCookies = cookies;
+
+  return who;
 }
 const uniq = () => Math.random().toString(36).slice(2, 8);
 const cleanup = [];
+/** Cookie admin yang masih sah, disimpan sebelum uji rate limit. */
+let adminCookies = "";
 
 async function main() {
   console.log(`${c.bold}Security Suite UC Centers${c.reset} — target: ${BASE}\n`);
@@ -379,9 +389,34 @@ async function main() {
 
 async function finish() {
   section("Pembersihan");
-  await login().catch(() => {});
-  for (const fn of cleanup) { try { await fn(); } catch { /* diabaikan */ } }
-  console.log(`  ${c.dim}${cleanup.length} objek uji dihapus${c.reset}`);
+
+  // Pakai cookie sesi yang tersimpan dari login admin terakhir yang berhasil.
+  //
+  // Sesinya TIDAK diverifikasi lewat /api/auth/session: endpoint itu berada di
+  // balik rate limit Nginx yang ketat (10 req/menit) dan sudah pasti tertahan
+  // sesudah uji brute force — pengecekannya sendiri yang gagal, bukan sesinya.
+  // Endpoint pembersihan (/api/admin/*) memakai kuota berbeda yang jauh lebih
+  // longgar, jadi langsung dicoba dan hasil tiap request yang dihitung.
+  if (adminCookies) cookies = adminCookies;
+
+  let cleanupFailed = 0;
+  for (const fn of cleanup) {
+    try {
+      const res = await fn();
+      if (res && typeof res.status === "number" && res.status >= 400) cleanupFailed++;
+    } catch {
+      cleanupFailed++;
+    }
+  }
+
+  const cleanOk = cleanupFailed === 0;
+  console.log(`  ${cleanup.length - cleanupFailed}/${cleanup.length} objek uji dihapus` +
+    (cleanOk ? "" : ` ${c.red}(${cleanupFailed} gagal)${c.reset}`));
+  if (!cleanOk) {
+    console.log(`  ${c.dim}Sisa data uji dapat dibersihkan manual, lalu ulangi suite${c.reset}`);
+  }
+  results.push({ area: "cleanup", name: "Data uji terhapus", ok: cleanOk,
+    detail: cleanOk ? "" : `${cleanupFailed} objek tertinggal di database` });
 
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${"=".repeat(64)}`);
